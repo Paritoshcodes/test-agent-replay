@@ -168,13 +168,23 @@ class ToolTap(HookProvider):
         event.selected_tool = StoredResultTool(event.selected_tool, recorded["output"])
 
 
-def build_agent(trace: list, replay: bool = False) -> tuple[Agent, ReplayableBedrockModel, ToolTap]:
-    model = ReplayableBedrockModel(trace, replay, model_id=MODEL_ID, region_name=REGION)
-    tap = ToolTap(trace, replay)
+def build_agent(
+    trace: list,
+    replay: bool = False,
+    *,
+    model_id: str = MODEL_ID,
+    system_prompt: str = SYSTEM_PROMPT,
+    tap: HookProvider | None = None,
+) -> tuple[Agent, ReplayableBedrockModel, HookProvider]:
+    """Build the spike agent. model_id/system_prompt/tap are overridable so gate.py can run a live model
+    against a changed prompt or model ID while reusing ReplayableBedrockModel's recording behaviour."""
+    model = ReplayableBedrockModel(trace, replay, model_id=model_id, region_name=REGION)
+    if tap is None:
+        tap = ToolTap(trace, replay)
     agent = Agent(
         model=model,
         tools=[lookup_order, issue_refund],
-        system_prompt=SYSTEM_PROMPT,
+        system_prompt=system_prompt,
         hooks=[tap],
         callback_handler=None,
     )
