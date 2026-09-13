@@ -1,0 +1,71 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Agent Replay storage: one DynamoDB table (run index) and one S3 bucket (content-addressed event
+  payloads). No compute, no IAM roles beyond what CloudFormation itself needs to manage these two
+  resources -- nothing else is created.
+
+Parameters:
+  ProjectTag:
+    Type: String
+    Default: agent-replay
+
+Resources:
+  # Single table, per the requirement to create ONLY the DynamoDB table (not one-per-purpose).
+  # sequence_number=0 holds the run-level metadata item; 1.. hold one item per trace event.
+  TraceTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      TableName: agent-replay
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: run_id
+          AttributeType: S
+        - AttributeName: sequence_number
+          AttributeType: N
+      KeySchema:
+        - AttributeName: run_id
+          KeyType: HASH
+        - AttributeName: sequence_number
+          KeyType: RANGE
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectTag
+
+  EventStoreBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      # No BucketName: CloudFormation auto-generates a unique name so the account ID never appears as a
+      # readable substring anywhere -- read the actual name from this stack's Outputs (BucketName below),
+      # never hardcode or reconstruct it in app code or docs.
+      VersioningConfiguration:
+        Status: Suspended
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          # Scoped to runs/ only: golden/ payloads must never expire while DynamoDB still lists the run
+          # as present, or gate/full replay against that golden breaks with S3 NoSuchKey.
+          - Id: ExpireNonGoldenTraces
+            Status: Enabled
+            Prefix: "runs/"
+            ExpirationInDays: 7
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectTag
+
+Outputs:
+  TableName:
+    Value: !Ref TraceTable
+  BucketName:
+    Value: !Ref EventStoreBucket

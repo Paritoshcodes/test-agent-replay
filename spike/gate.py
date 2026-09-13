@@ -14,6 +14,7 @@ from collections import deque
 
 from agent import COUNTS, StoredResultTool, append_event, canonical
 from gate_compare import StepReport, compare, compare_halted
+from storage import AwsTraceStorage, LocalTraceStorage
 from strands.hooks import AfterToolCallEvent, BeforeToolCallEvent, HookProvider, HookRegistry
 from strands.types.exceptions import EventLoopException
 
@@ -224,7 +225,9 @@ def _print_what_changed(args: argparse.Namespace, mutations: dict[str, dict], go
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Gate replay: live model, tool outputs frozen from a golden trace.")
-    parser.add_argument("--trace", required=True, help="Path to the golden trace JSON (from record.py).")
+    parser.add_argument("--trace", default=None, help="Path to the golden trace JSON (local storage only; from record.py).")
+    parser.add_argument("--run-id", default=None, help="Golden trace identifier (aws storage only; DynamoDB partition key).")
+    parser.add_argument("--storage", choices=["local", "aws"], default="local", help="Where to load the golden trace from. --trace for local, --run-id for aws.")
     parser.add_argument("--prompt", default=None, help="Replacement system prompt for the candidate run.")
     parser.add_argument("--model-id", default=None, help="Replacement Bedrock model ID for the candidate run.")
     parser.add_argument("--strict", action="store_true", help="Halt at the first unrecorded tool call instead of injecting a synthetic error.")
@@ -235,7 +238,14 @@ def main() -> int:
 
     agent_mod = importlib.import_module(args.agent_module)
 
-    golden = json.loads(open(args.trace, encoding="utf-8").read())
+    if args.storage == "local":
+        if args.trace is None:
+            sys.exit("--trace is required with --storage local")
+        golden = LocalTraceStorage.load_path(args.trace)
+    else:
+        if args.run_id is None:
+            sys.exit("--run-id is required with --storage aws")
+        golden = AwsTraceStorage().load(args.run_id)  # LOAD PHASE: fully in memory before the agent runs
     golden_events = golden["events"]
     mutations = _parse_mutate_args(args.mutate, golden_events)
 
