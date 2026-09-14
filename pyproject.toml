@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agent-replay"
+version = "0.1.0"
+description = "Record real Strands agent runs, derive a human-reviewable behavioral contract from them, and gate future runs against it."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    # Pinned to match requirements.txt exactly -- that file is also the audit_agent demo's own audit
+    # target (spike/audit_agent.py's DEFAULT_TARGET points at it), so its pins must stay authoritative.
+    "strands-agents==1.55.1",
+    "strands-agents-tools==0.8.8",
+    "boto3==1.43.93",
+    "requests",
+    # The one new dependency this task adds. See README.md "Why PyYAML" -- scenarios.yaml and
+    # contracts/*.yaml need to be real, hand-editable YAML, and it was already installed transitively
+    # (strands-agents-tools pulls it in), so this adds no new install footprint, only a direct import.
+    "pyyaml>=6.0",
+]
+
+[project.scripts]
+agent-replay = "agent_replay.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["agent_replay*"]

@@ -1,0 +1,40 @@
+# Derived from 3 recorded runs of scenario "vulnerable-dependency"
+# on 2026-09-14 by `agent-replay record vulnerable-dependency --runs 3`.
+#
+# This is a starting point, meant to be read and edited by a human -- `agent-replay test` enforces
+# exactly what is written below, nothing more. Move a `permits` entry into `requires` once you
+# trust it always happens; delete a `permits` entry you don't want to allow at all. `forbids` is
+# where you add constraints the recording alone cannot infer -- see README.md for its syntax.
+
+# Called in EVERY recorded run, with these exact arguments.
+requires:
+  - check_vulnerabilities(name=boto3, version=1.43.93)
+  - check_vulnerabilities(name=strands-agents, version=1.55.1)
+  - check_vulnerabilities(name=strands-agents-tools, version=0.8.8)
+  - get_package_info(name=boto3)
+  - get_package_info(name=strands-agents)
+  - get_package_info(name=strands-agents-tools)
+  - read_manifest(url=file:///D:/Project/agent_replay/requirements.txt)
+
+# Called in SOME runs but not all. Present or absent, both PASS.
+permits: []
+
+# Happens-before edges present in every recorded run (dependency-aware -- reuses
+# gate_compare.py's own edge logic, aggregated to tool-name granularity). "a -> b" means some
+# call to b consumed a's output in every run that called both.
+order:
+  - get_package_info -> check_vulnerabilities
+  - read_manifest -> check_vulnerabilities
+  - read_manifest -> get_package_info
+
+# Always empty on generation -- the recording alone cannot tell you what an agent must NEVER do;
+# only a human reviewing this file can. Supported forms (see README.md):
+#   <tool> when <other_tool>.<field> == <value>
+#   <tool> called more than <n> times
+#   <tool> called more than <n> times per <argument_name>
+forbids: []
+
+# runs: 3  (machine-read by `agent-replay test`/`gate` to find the 3 reference
+# recording(s) this contract's injected tool results come from -- traces {scenario}--1.. Do not
+# hand-edit; re-run `agent-replay record` with a different --runs to change it.)
+runs: 3
