@@ -37,6 +37,7 @@ import datetime
 import json
 import logging
 import os
+from decimal import Decimal
 
 import boto3
 
@@ -57,8 +58,20 @@ _CORS = {
 }
 
 
+class _DdbJsonEncoder(json.JSONEncoder):
+    """boto3's DynamoDB RESOURCE interface deserializes every N attribute to decimal.Decimal, which
+    json.dumps cannot serialize -- it raises TypeError and the whole response 500s. Every numeric field
+    coming back from a Query lands here: sequence_number (the sort key, always projected), token counts,
+    step numbers. Ints stay ints so `sequence_number: 0` does not become `0.0` in the browser."""
+
+    def default(self, o):
+        if isinstance(o, Decimal):
+            return int(o) if o == o.to_integral_value() else float(o)
+        return super().default(o)
+
+
 def _response(status: int, body) -> dict:
-    return {"statusCode": status, "headers": {**_CORS, "Content-Type": "application/json"}, "body": json.dumps(body)}
+    return {"statusCode": status, "headers": {**_CORS, "Content-Type": "application/json"}, "body": json.dumps(body, cls=_DdbJsonEncoder)}
 
 
 def _param(event: dict, name: str) -> str | None:
