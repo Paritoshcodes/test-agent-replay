@@ -362,3 +362,5 @@ Byte-identical replay by injection is not the same thing as a deterministic mode
 `agent-replay gate` make a real model call every run; only tool results are frozen. See
 `docs/LIMITATIONS.md` for what this tool does and does not verify -- in particular, it checks that an
 agent's tool calls match the contract, not that its decisions were correct given the data it read.
+
+<!-- CI baseline check -->
