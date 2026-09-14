@@ -1,0 +1,4 @@
+boto3==1.43.93
+strands-agents==1.55.1
+requests
+pyyaml

@@ -1,0 +1,2445 @@
+{
+  "prompt": "Audit the dependencies pinned in file://{repo}/requirements.txt and give a deploy verdict.",
+  "final_answer": "<thinking>All three packages, 'boto3', 'strands-agents', and 'strands-agents-tools', are safe to deploy. No vulnerabilities were found for any of them.</thinking>\n\nSAFE TO DEPLOY\n",
+  "final_answer_sha256": "309f605c6fd55e1ffc8e6e41e38802edfa7376bb7fbf0f34a7375ed56ffc2bb7",
+  "agent_module": "audit_agent",
+  "model_id": "apac.amazon.nova-lite-v1:0",
+  "system_prompt": "You are a dependency security auditor. Read the manifest, then for every pinned package call get_package_info to confirm what it is and check_vulnerabilities for the pinned version. Process packages in alphabetical order by name. Do not give a verdict until every pinned package has been checked. End your response on its own final line with a clear verdict: either 'SAFE TO DEPLOY' or 'BLOCKED: <reason>'.",
+  "run_kind": "golden",
+  "events": [
+    {
+      "seq": 1,
+      "type": "model",
+      "input": {
+        "messages": [
+          {
+            "content": [
+              {
+                "text": "Audit the dependencies pinned in file://{repo}/requirements.txt and give a deploy verdict."
+              }
+            ],
+            "role": "user"
+          }
+        ],
+        "system_prompt": "You are a dependency security auditor. Read the manifest, then for every pinned package call get_package_info to confirm what it is and check_vulnerabilities for the pinned version. Process packages in alphabetical order by name. Do not give a verdict until every pinned package has been checked. End your response on its own final line with a clear verdict: either 'SAFE TO DEPLOY' or 'BLOCKED: <reason>'.",
+        "tool_specs": [
+          {
+            "description": "Fetch the raw text of a requirements.txt from an https:// URL, a file:// URL, or a local path.",
+            "inputSchema": {
+              "json": {
+                "properties": {
+                  "url": {
+                    "description": "Parameter url",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "url"
+                ],
+                "type": "object"
+              }
+            },
+            "name": "read_manifest"
+          },
+          {
+            "description": "Look up a package on PyPI; returns a trimmed summary (name, latest version, summary, license, release date).",
+            "inputSchema": {
+              "json": {
+                "properties": {
+                  "name": {
+                    "description": "Parameter name",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "type": "object"
+              }
+            },
+            "name": "get_package_info"
+          },
+          {
+            "description": "Query OSV.dev for known vulnerabilities in a specific PyPI package version; returns a trimmed summary.",
+            "inputSchema": {
+              "json": {
+                "properties": {
+                  "name": {
+                    "description": "Parameter name",
+                    "type": "string"
+                  },
+                  "version": {
+                    "description": "Parameter version",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name",
+                  "version"
+                ],
+                "type": "object"
+              }
+            },
+            "name": "check_vulnerabilities"
+          }
+        ]
+      },
+      "output": [
+        {
+          "messageStart": {
+            "role": "assistant"
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "<thinking"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": ">"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "I"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " need"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " to"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " start"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " by"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " fetching"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " the"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " manifest"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " file"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": ","
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " then"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " list"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " all"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " pinned"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " packages"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": ","
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " and"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " finally"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " check"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " each"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " package"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " for"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " vulnerabilities"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "."
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " I"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " will"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " process"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " the"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " packages"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " in"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " alphabetical"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " order"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": ".</"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "thinking"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": ">\n"
+            }
+          }
+        },
+        {
+          "contentBlockStop": {
+            "contentBlockIndex": 0
+          }
+        },
+        {
+          "contentBlockStart": {
+            "contentBlockIndex": 1,
+            "start": {
+              "toolUse": {
+                "name": "read_manifest",
+                "toolUseId": "tooluse_zJgFWzAdB7zYKhPexTlX4t"
+              }
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 1,
+            "delta": {
+              "toolUse": {
+                "input": "{\"url\":\"file://{repo}/requirements.txt\"}"
+              }
+            }
+          }
+        },
+        {
+          "contentBlockStop": {
+            "contentBlockIndex": 1
+          }
+        },
+        {
+          "messageStop": {
+            "stopReason": "tool_use"
+          }
+        },
+        {
+          "metadata": {
+            "metrics": {
+              "latencyMs": 631
+            },
+            "usage": {
+              "inputTokens": 676,
+              "outputTokens": 68,
+              "totalTokens": 744
+            }
+          }
+        }
+      ],
+      "output_sha256": "eea6533414f788683d4f4381d4237a7fbc9e6845987e7c9c5b5f502b9aaf4a80"
+    },
+    {
+      "seq": 2,
+      "type": "tool",
+      "input": {
+        "input": {
+          "url": "file://{repo}/requirements.txt"
+        },
+        "name": "read_manifest",
+        "toolUseId": "tooluse_zJgFWzAdB7zYKhPexTlX4t"
+      },
+      "output": {
+        "content": [
+          {
+            "text": "strands-agents==1.55.1\nstrands-agents-tools==0.8.8\nboto3==1.43.93\n"
+          }
+        ],
+        "status": "success",
+        "toolUseId": "tooluse_zJgFWzAdB7zYKhPexTlX4t"
+      },
+      "output_sha256": "71d2678e6d248489437be78116a1e9d59e7d2c7478e62d54e9970d478091eb30"
+    },
+    {
+      "seq": 3,
+      "type": "model",
+      "input": {
+        "messages": [
+          {
+            "content": [
+              {
+                "text": "Audit the dependencies pinned in file://{repo}/requirements.txt and give a deploy verdict."
+              }
+            ],
+            "role": "user"
+          },
+          {
+            "content": [
+              {
+                "text": "<thinking>I need to start by fetching the manifest file, then list all pinned packages, and finally check each package for vulnerabilities. I will process the packages in alphabetical order.</thinking>\n"
+              },
+              {
+                "toolUse": {
+                  "input": {
+                    "url": "file://{repo}/requirements.txt"
+                  },
+                  "name": "read_manifest",
+                  "toolUseId": "tooluse_zJgFWzAdB7zYKhPexTlX4t"
+                }
+              }
+            ],
+            "role": "assistant"
+          },
+          {
+            "content": [
+              {
+                "toolResult": {
+                  "content": [
+                    {
+                      "text": "strands-agents==1.55.1\nstrands-agents-tools==0.8.8\nboto3==1.43.93\n"
+                    }
+                  ],
+                  "status": "success",
+                  "toolUseId": "tooluse_zJgFWzAdB7zYKhPexTlX4t"
+                }
+              }
+            ],
+            "role": "user"
+          }
+        ],
+        "system_prompt": "You are a dependency security auditor. Read the manifest, then for every pinned package call get_package_info to confirm what it is and check_vulnerabilities for the pinned version. Process packages in alphabetical order by name. Do not give a verdict until every pinned package has been checked. End your response on its own final line with a clear verdict: either 'SAFE TO DEPLOY' or 'BLOCKED: <reason>'.",
+        "tool_specs": [
+          {
+            "description": "Fetch the raw text of a requirements.txt from an https:// URL, a file:// URL, or a local path.",
+            "inputSchema": {
+              "json": {
+                "properties": {
+                  "url": {
+                    "description": "Parameter url",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "url"
+                ],
+                "type": "object"
+              }
+            },
+            "name": "read_manifest"
+          },
+          {
+            "description": "Look up a package on PyPI; returns a trimmed summary (name, latest version, summary, license, release date).",
+            "inputSchema": {
+              "json": {
+                "properties": {
+                  "name": {
+                    "description": "Parameter name",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "type": "object"
+              }
+            },
+            "name": "get_package_info"
+          },
+          {
+            "description": "Query OSV.dev for known vulnerabilities in a specific PyPI package version; returns a trimmed summary.",
+            "inputSchema": {
+              "json": {
+                "properties": {
+                  "name": {
+                    "description": "Parameter name",
+                    "type": "string"
+                  },
+                  "version": {
+                    "description": "Parameter version",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name",
+                  "version"
+                ],
+                "type": "object"
+              }
+            },
+            "name": "check_vulnerabilities"
+          }
+        ]
+      },
+      "output": [
+        {
+          "messageStart": {
+            "role": "assistant"
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "<thinking"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": ">"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "I"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " have"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " read"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " the"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " manifest"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " file"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " and"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " found"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " three"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " pinned"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " packages"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": ":"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " '"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "strand"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "s"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "-"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "agent"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "s"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "'"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": ","
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " '"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "strand"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "s"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "-"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "agent"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "s"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "-"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "tools"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "'"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": ","
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " and"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " '"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "bo"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "to"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "3"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "'"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "."
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " I"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " will"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " now"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " check"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " each"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " package"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " for"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " vulnerabilities"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " in"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " alphabetical"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " order"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": ".</"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "thinking"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": ">\n\n"
+            }
+          }
+        },
+        {
+          "contentBlockStop": {
+            "contentBlockIndex": 0
+          }
+        },
+        {
+          "contentBlockStart": {
+            "contentBlockIndex": 1,
+            "start": {
+              "toolUse": {
+                "name": "get_package_info",
+                "toolUseId": "tooluse_GITwD7uu5kDvnbnWHh6bqt"
+              }
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 1,
+            "delta": {
+              "toolUse": {
+                "input": "{\"name\":\"boto3\"}"
+              }
+            }
+          }
+        },
+        {
+          "contentBlockStop": {
+            "contentBlockIndex": 1
+          }
+        },
+        {
+          "contentBlockStart": {
+            "contentBlockIndex": 2,
+            "start": {
+              "toolUse": {
+                "name": "check_vulnerabilities",
+                "toolUseId": "tooluse_gFTIor4ftTTbUsMwuihMDW"
+              }
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 2,
+            "delta": {
+              "toolUse": {
+                "input": "{\"name\":\"boto3\",\"version\":\"1.43.93\"}"
+              }
+            }
+          }
+        },
+        {
+          "contentBlockStop": {
+            "contentBlockIndex": 2
+          }
+        },
+        {
+          "messageStop": {
+            "stopReason": "tool_use"
+          }
+        },
+        {
+          "metadata": {
+            "metrics": {
+              "latencyMs": 697
+            },
+            "usage": {
+              "inputTokens": 809,
+              "outputTokens": 96,
+              "totalTokens": 905
+            }
+          }
+        }
+      ],
+      "output_sha256": "03e0a288821ba211c53d4caf993e3a3094b68fcfe9dbdda5ba43d2a9b05d5e89"
+    },
+    {
+      "seq": 4,
+      "type": "tool",
+      "input": {
+        "input": {
+          "name": "boto3"
+        },
+        "name": "get_package_info",
+        "toolUseId": "tooluse_GITwD7uu5kDvnbnWHh6bqt"
+      },
+      "output": {
+        "content": [
+          {
+            "text": "{\"name\":\"boto3\",\"latest_version\":\"1.43.93\",\"summary\":\"The AWS SDK for Python\",\"license\":\"Apache-2.0\",\"release_date\":\"2026-09-11T19:23:01\"}"
+          }
+        ],
+        "status": "success",
+        "toolUseId": "tooluse_GITwD7uu5kDvnbnWHh6bqt"
+      },
+      "output_sha256": "c0bfb26779b2885dd6f789f55f27d919b1a1f795504c9c4484504bc2865fec03"
+    },
+    {
+      "seq": 5,
+      "type": "tool",
+      "input": {
+        "input": {
+          "name": "boto3",
+          "version": "1.43.93"
+        },
+        "name": "check_vulnerabilities",
+        "toolUseId": "tooluse_gFTIor4ftTTbUsMwuihMDW"
+      },
+      "output": {
+        "content": [
+          {
+            "text": "{\"package\":\"boto3\",\"version\":\"1.43.93\",\"vulnerability_count\":0,\"vulnerabilities\":[]}"
+          }
+        ],
+        "status": "success",
+        "toolUseId": "tooluse_gFTIor4ftTTbUsMwuihMDW"
+      },
+      "output_sha256": "7f07a1a6a567e972ff546d70eb2b269e7133ba971f71e20c751538cdc2df5f7b"
+    },
+    {
+      "seq": 6,
+      "type": "model",
+      "input": {
+        "messages": [
+          {
+            "content": [
+              {
+                "text": "Audit the dependencies pinned in file://{repo}/requirements.txt and give a deploy verdict."
+              }
+            ],
+            "role": "user"
+          },
+          {
+            "content": [
+              {
+                "text": "<thinking>I need to start by fetching the manifest file, then list all pinned packages, and finally check each package for vulnerabilities. I will process the packages in alphabetical order.</thinking>\n"
+              },
+              {
+                "toolUse": {
+                  "input": {
+                    "url": "file://{repo}/requirements.txt"
+                  },
+                  "name": "read_manifest",
+                  "toolUseId": "tooluse_zJgFWzAdB7zYKhPexTlX4t"
+                }
+              }
+            ],
+            "role": "assistant"
+          },
+          {
+            "content": [
+              {
+                "toolResult": {
+                  "content": [
+                    {
+                      "text": "strands-agents==1.55.1\nstrands-agents-tools==0.8.8\nboto3==1.43.93\n"
+                    }
+                  ],
+                  "status": "success",
+                  "toolUseId": "tooluse_zJgFWzAdB7zYKhPexTlX4t"
+                }
+              }
+            ],
+            "role": "user"
+          },
+          {
+            "content": [
+              {
+                "text": "<thinking>I have read the manifest file and found three pinned packages: 'strands-agents', 'strands-agents-tools', and 'boto3'. I will now check each package for vulnerabilities in alphabetical order.</thinking>\n\n"
+              },
+              {
+                "toolUse": {
+                  "input": {
+                    "name": "boto3"
+                  },
+                  "name": "get_package_info",
+                  "toolUseId": "tooluse_GITwD7uu5kDvnbnWHh6bqt"
+                }
+              },
+              {
+                "toolUse": {
+                  "input": {
+                    "name": "boto3",
+                    "version": "1.43.93"
+                  },
+                  "name": "check_vulnerabilities",
+                  "toolUseId": "tooluse_gFTIor4ftTTbUsMwuihMDW"
+                }
+              }
+            ],
+            "role": "assistant"
+          },
+          {
+            "content": [
+              {
+                "toolResult": {
+                  "content": [
+                    {
+                      "text": "{\"name\":\"boto3\",\"latest_version\":\"1.43.93\",\"summary\":\"The AWS SDK for Python\",\"license\":\"Apache-2.0\",\"release_date\":\"2026-09-11T19:23:01\"}"
+                    }
+                  ],
+                  "status": "success",
+                  "toolUseId": "tooluse_GITwD7uu5kDvnbnWHh6bqt"
+                }
+              },
+              {
+                "toolResult": {
+                  "content": [
+                    {
+                      "text": "{\"package\":\"boto3\",\"version\":\"1.43.93\",\"vulnerability_count\":0,\"vulnerabilities\":[]}"
+                    }
+                  ],
+                  "status": "success",
+                  "toolUseId": "tooluse_gFTIor4ftTTbUsMwuihMDW"
+                }
+              }
+            ],
+            "role": "user"
+          }
+        ],
+        "system_prompt": "You are a dependency security auditor. Read the manifest, then for every pinned package call get_package_info to confirm what it is and check_vulnerabilities for the pinned version. Process packages in alphabetical order by name. Do not give a verdict until every pinned package has been checked. End your response on its own final line with a clear verdict: either 'SAFE TO DEPLOY' or 'BLOCKED: <reason>'.",
+        "tool_specs": [
+          {
+            "description": "Fetch the raw text of a requirements.txt from an https:// URL, a file:// URL, or a local path.",
+            "inputSchema": {
+              "json": {
+                "properties": {
+                  "url": {
+                    "description": "Parameter url",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "url"
+                ],
+                "type": "object"
+              }
+            },
+            "name": "read_manifest"
+          },
+          {
+            "description": "Look up a package on PyPI; returns a trimmed summary (name, latest version, summary, license, release date).",
+            "inputSchema": {
+              "json": {
+                "properties": {
+                  "name": {
+                    "description": "Parameter name",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "type": "object"
+              }
+            },
+            "name": "get_package_info"
+          },
+          {
+            "description": "Query OSV.dev for known vulnerabilities in a specific PyPI package version; returns a trimmed summary.",
+            "inputSchema": {
+              "json": {
+                "properties": {
+                  "name": {
+                    "description": "Parameter name",
+                    "type": "string"
+                  },
+                  "version": {
+                    "description": "Parameter version",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name",
+                  "version"
+                ],
+                "type": "object"
+              }
+            },
+            "name": "check_vulnerabilities"
+          }
+        ]
+      },
+      "output": [
+        {
+          "messageStart": {
+            "role": "assistant"
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "<thinking"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": ">"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "'"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "bo"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "to"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "3"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "'"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " is"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " safe"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " to"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " deploy"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "."
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " Next"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": ","
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " I"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " will"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " check"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " '"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "strand"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "s"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "-"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "agent"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "s"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "'"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": ".</"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "thinking"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": ">"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " "
+            }
+          }
+        },
+        {
+          "contentBlockStop": {
+            "contentBlockIndex": 0
+          }
+        },
+        {
+          "contentBlockStart": {
+            "contentBlockIndex": 1,
+            "start": {
+              "toolUse": {
+                "name": "get_package_info",
+                "toolUseId": "tooluse_snpHmemRYS59MqBx0UFfVv"
+              }
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 1,
+            "delta": {
+              "toolUse": {
+                "input": "{\"name\":\"strands-agents\"}"
+              }
+            }
+          }
+        },
+        {
+          "contentBlockStop": {
+            "contentBlockIndex": 1
+          }
+        },
+        {
+          "contentBlockStart": {
+            "contentBlockIndex": 2,
+            "start": {
+              "toolUse": {
+                "name": "check_vulnerabilities",
+                "toolUseId": "tooluse_FMjd9lS8RGrY5RFmBMABRx"
+              }
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 2,
+            "delta": {
+              "toolUse": {
+                "input": "{\"name\":\"strands-agents\",\"version\":\"1.55.1\"}"
+              }
+            }
+          }
+        },
+        {
+          "contentBlockStop": {
+            "contentBlockIndex": 2
+          }
+        },
+        {
+          "contentBlockStart": {
+            "contentBlockIndex": 3,
+            "start": {
+              "toolUse": {
+                "name": "get_package_info",
+                "toolUseId": "tooluse_Ksh1hAT2vOaeCYsjQkYLAs"
+              }
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 3,
+            "delta": {
+              "toolUse": {
+                "input": "{\"name\":\"strands-agents-tools\"}"
+              }
+            }
+          }
+        },
+        {
+          "contentBlockStop": {
+            "contentBlockIndex": 3
+          }
+        },
+        {
+          "contentBlockStart": {
+            "contentBlockIndex": 4,
+            "start": {
+              "toolUse": {
+                "name": "check_vulnerabilities",
+                "toolUseId": "tooluse_K2CuZtEXWMoh1Sqj0IgRjQ"
+              }
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 4,
+            "delta": {
+              "toolUse": {
+                "input": "{\"name\":\"strands-agents-tools\",\"version\":\"0.8.8\"}"
+              }
+            }
+          }
+        },
+        {
+          "contentBlockStop": {
+            "contentBlockIndex": 4
+          }
+        },
+        {
+          "messageStop": {
+            "stopReason": "tool_use"
+          }
+        },
+        {
+          "metadata": {
+            "metrics": {
+              "latencyMs": 1102
+            },
+            "usage": {
+              "inputTokens": 1038,
+              "outputTokens": 121,
+              "totalTokens": 1159
+            }
+          }
+        }
+      ],
+      "output_sha256": "6734133d2508f4f73ff5f48ec16a80d921581e5d7b9d836b1d102cbbf5261e77"
+    },
+    {
+      "seq": 7,
+      "type": "tool",
+      "input": {
+        "input": {
+          "name": "strands-agents"
+        },
+        "name": "get_package_info",
+        "toolUseId": "tooluse_snpHmemRYS59MqBx0UFfVv"
+      },
+      "output": {
+        "content": [
+          {
+            "text": "{\"name\":\"strands-agents\",\"latest_version\":\"1.55.1\",\"summary\":\"A model-driven approach to building AI agents in just a few lines of code\",\"license\":\"Apache-2.0\",\"release_date\":\"2026-09-09T21:24:35\"}"
+          }
+        ],
+        "status": "success",
+        "toolUseId": "tooluse_snpHmemRYS59MqBx0UFfVv"
+      },
+      "output_sha256": "0a638037bec5e705b9b29b5339d44b84b71e440412522f43fbc5329a6866c8b5"
+    },
+    {
+      "seq": 8,
+      "type": "tool",
+      "input": {
+        "input": {
+          "name": "strands-agents-tools"
+        },
+        "name": "get_package_info",
+        "toolUseId": "tooluse_Ksh1hAT2vOaeCYsjQkYLAs"
+      },
+      "output": {
+        "content": [
+          {
+            "text": "{\"name\":\"strands-agents-tools\",\"latest_version\":\"0.8.8\",\"summary\":\"A collection of specialized tools for Strands Agents\",\"license\":\"Apache-2.0\",\"release_date\":\"2026-09-04T14:58:19\"}"
+          }
+        ],
+        "status": "success",
+        "toolUseId": "tooluse_Ksh1hAT2vOaeCYsjQkYLAs"
+      },
+      "output_sha256": "f2933d38e66c8fd37e20b796426e8054b7603a47c1d91fa9fb3b647547cc9910"
+    },
+    {
+      "seq": 9,
+      "type": "tool",
+      "input": {
+        "input": {
+          "name": "strands-agents-tools",
+          "version": "0.8.8"
+        },
+        "name": "check_vulnerabilities",
+        "toolUseId": "tooluse_K2CuZtEXWMoh1Sqj0IgRjQ"
+      },
+      "output": {
+        "content": [
+          {
+            "text": "{\"package\":\"strands-agents-tools\",\"version\":\"0.8.8\",\"vulnerability_count\":0,\"vulnerabilities\":[]}"
+          }
+        ],
+        "status": "success",
+        "toolUseId": "tooluse_K2CuZtEXWMoh1Sqj0IgRjQ"
+      },
+      "output_sha256": "6a97392da1d8aac980b01a6035744bc3e55759dfbf47f868c571b24755b3231c"
+    },
+    {
+      "seq": 10,
+      "type": "tool",
+      "input": {
+        "input": {
+          "name": "strands-agents",
+          "version": "1.55.1"
+        },
+        "name": "check_vulnerabilities",
+        "toolUseId": "tooluse_FMjd9lS8RGrY5RFmBMABRx"
+      },
+      "output": {
+        "content": [
+          {
+            "text": "{\"package\":\"strands-agents\",\"version\":\"1.55.1\",\"vulnerability_count\":0,\"vulnerabilities\":[]}"
+          }
+        ],
+        "status": "success",
+        "toolUseId": "tooluse_FMjd9lS8RGrY5RFmBMABRx"
+      },
+      "output_sha256": "a84ea5469b39079c35d5dbf61afba026b444abdbbe065799e98e77dc0b96d7da"
+    },
+    {
+      "seq": 11,
+      "type": "model",
+      "input": {
+        "messages": [
+          {
+            "content": [
+              {
+                "text": "Audit the dependencies pinned in file://{repo}/requirements.txt and give a deploy verdict."
+              }
+            ],
+            "role": "user"
+          },
+          {
+            "content": [
+              {
+                "text": "<thinking>I need to start by fetching the manifest file, then list all pinned packages, and finally check each package for vulnerabilities. I will process the packages in alphabetical order.</thinking>\n"
+              },
+              {
+                "toolUse": {
+                  "input": {
+                    "url": "file://{repo}/requirements.txt"
+                  },
+                  "name": "read_manifest",
+                  "toolUseId": "tooluse_zJgFWzAdB7zYKhPexTlX4t"
+                }
+              }
+            ],
+            "role": "assistant"
+          },
+          {
+            "content": [
+              {
+                "toolResult": {
+                  "content": [
+                    {
+                      "text": "strands-agents==1.55.1\nstrands-agents-tools==0.8.8\nboto3==1.43.93\n"
+                    }
+                  ],
+                  "status": "success",
+                  "toolUseId": "tooluse_zJgFWzAdB7zYKhPexTlX4t"
+                }
+              }
+            ],
+            "role": "user"
+          },
+          {
+            "content": [
+              {
+                "text": "<thinking>I have read the manifest file and found three pinned packages: 'strands-agents', 'strands-agents-tools', and 'boto3'. I will now check each package for vulnerabilities in alphabetical order.</thinking>\n\n"
+              },
+              {
+                "toolUse": {
+                  "input": {
+                    "name": "boto3"
+                  },
+                  "name": "get_package_info",
+                  "toolUseId": "tooluse_GITwD7uu5kDvnbnWHh6bqt"
+                }
+              },
+              {
+                "toolUse": {
+                  "input": {
+                    "name": "boto3",
+                    "version": "1.43.93"
+                  },
+                  "name": "check_vulnerabilities",
+                  "toolUseId": "tooluse_gFTIor4ftTTbUsMwuihMDW"
+                }
+              }
+            ],
+            "role": "assistant"
+          },
+          {
+            "content": [
+              {
+                "toolResult": {
+                  "content": [
+                    {
+                      "text": "{\"name\":\"boto3\",\"latest_version\":\"1.43.93\",\"summary\":\"The AWS SDK for Python\",\"license\":\"Apache-2.0\",\"release_date\":\"2026-09-11T19:23:01\"}"
+                    }
+                  ],
+                  "status": "success",
+                  "toolUseId": "tooluse_GITwD7uu5kDvnbnWHh6bqt"
+                }
+              },
+              {
+                "toolResult": {
+                  "content": [
+                    {
+                      "text": "{\"package\":\"boto3\",\"version\":\"1.43.93\",\"vulnerability_count\":0,\"vulnerabilities\":[]}"
+                    }
+                  ],
+                  "status": "success",
+                  "toolUseId": "tooluse_gFTIor4ftTTbUsMwuihMDW"
+                }
+              }
+            ],
+            "role": "user"
+          },
+          {
+            "content": [
+              {
+                "text": "<thinking>'boto3' is safe to deploy. Next, I will check 'strands-agents'.</thinking> "
+              },
+              {
+                "toolUse": {
+                  "input": {
+                    "name": "strands-agents"
+                  },
+                  "name": "get_package_info",
+                  "toolUseId": "tooluse_snpHmemRYS59MqBx0UFfVv"
+                }
+              },
+              {
+                "toolUse": {
+                  "input": {
+                    "name": "strands-agents",
+                    "version": "1.55.1"
+                  },
+                  "name": "check_vulnerabilities",
+                  "toolUseId": "tooluse_FMjd9lS8RGrY5RFmBMABRx"
+                }
+              },
+              {
+                "toolUse": {
+                  "input": {
+                    "name": "strands-agents-tools"
+                  },
+                  "name": "get_package_info",
+                  "toolUseId": "tooluse_Ksh1hAT2vOaeCYsjQkYLAs"
+                }
+              },
+              {
+                "toolUse": {
+                  "input": {
+                    "name": "strands-agents-tools",
+                    "version": "0.8.8"
+                  },
+                  "name": "check_vulnerabilities",
+                  "toolUseId": "tooluse_K2CuZtEXWMoh1Sqj0IgRjQ"
+                }
+              }
+            ],
+            "role": "assistant"
+          },
+          {
+            "content": [
+              {
+                "toolResult": {
+                  "content": [
+                    {
+                      "text": "{\"name\":\"strands-agents\",\"latest_version\":\"1.55.1\",\"summary\":\"A model-driven approach to building AI agents in just a few lines of code\",\"license\":\"Apache-2.0\",\"release_date\":\"2026-09-09T21:24:35\"}"
+                    }
+                  ],
+                  "status": "success",
+                  "toolUseId": "tooluse_snpHmemRYS59MqBx0UFfVv"
+                }
+              },
+              {
+                "toolResult": {
+                  "content": [
+                    {
+                      "text": "{\"package\":\"strands-agents\",\"version\":\"1.55.1\",\"vulnerability_count\":0,\"vulnerabilities\":[]}"
+                    }
+                  ],
+                  "status": "success",
+                  "toolUseId": "tooluse_FMjd9lS8RGrY5RFmBMABRx"
+                }
+              },
+              {
+                "toolResult": {
+                  "content": [
+                    {
+                      "text": "{\"name\":\"strands-agents-tools\",\"latest_version\":\"0.8.8\",\"summary\":\"A collection of specialized tools for Strands Agents\",\"license\":\"Apache-2.0\",\"release_date\":\"2026-09-04T14:58:19\"}"
+                    }
+                  ],
+                  "status": "success",
+                  "toolUseId": "tooluse_Ksh1hAT2vOaeCYsjQkYLAs"
+                }
+              },
+              {
+                "toolResult": {
+                  "content": [
+                    {
+                      "text": "{\"package\":\"strands-agents-tools\",\"version\":\"0.8.8\",\"vulnerability_count\":0,\"vulnerabilities\":[]}"
+                    }
+                  ],
+                  "status": "success",
+                  "toolUseId": "tooluse_K2CuZtEXWMoh1Sqj0IgRjQ"
+                }
+              }
+            ],
+            "role": "user"
+          }
+        ],
+        "system_prompt": "You are a dependency security auditor. Read the manifest, then for every pinned package call get_package_info to confirm what it is and check_vulnerabilities for the pinned version. Process packages in alphabetical order by name. Do not give a verdict until every pinned package has been checked. End your response on its own final line with a clear verdict: either 'SAFE TO DEPLOY' or 'BLOCKED: <reason>'.",
+        "tool_specs": [
+          {
+            "description": "Fetch the raw text of a requirements.txt from an https:// URL, a file:// URL, or a local path.",
+            "inputSchema": {
+              "json": {
+                "properties": {
+                  "url": {
+                    "description": "Parameter url",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "url"
+                ],
+                "type": "object"
+              }
+            },
+            "name": "read_manifest"
+          },
+          {
+            "description": "Look up a package on PyPI; returns a trimmed summary (name, latest version, summary, license, release date).",
+            "inputSchema": {
+              "json": {
+                "properties": {
+                  "name": {
+                    "description": "Parameter name",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "type": "object"
+              }
+            },
+            "name": "get_package_info"
+          },
+          {
+            "description": "Query OSV.dev for known vulnerabilities in a specific PyPI package version; returns a trimmed summary.",
+            "inputSchema": {
+              "json": {
+                "properties": {
+                  "name": {
+                    "description": "Parameter name",
+                    "type": "string"
+                  },
+                  "version": {
+                    "description": "Parameter version",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name",
+                  "version"
+                ],
+                "type": "object"
+              }
+            },
+            "name": "check_vulnerabilities"
+          }
+        ]
+      },
+      "output": [
+        {
+          "messageStart": {
+            "role": "assistant"
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "<thinking"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": ">"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "All"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " three"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " packages"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": ","
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " '"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "bo"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "to"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "3"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "'"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": ","
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " '"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "strand"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "s"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "-"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "agent"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "s"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "'"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": ","
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " and"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " '"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "strand"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "s"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "-"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "agent"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "s"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "-"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "tools"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "'"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": ","
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " are"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " safe"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " to"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " deploy"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "."
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " No"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " vulnerabilities"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " were"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " found"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " for"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " any"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " of"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " them"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": ".</"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "thinking"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": ">\n\n"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "SAFE"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " TO"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " DE"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "PL"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "OY"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": ""
+            }
+          }
+        },
+        {
+          "contentBlockStop": {
+            "contentBlockIndex": 0
+          }
+        },
+        {
+          "messageStop": {
+            "stopReason": "end_turn"
+          }
+        },
+        {
+          "metadata": {
+            "metrics": {
+              "latencyMs": 590
+            },
+            "usage": {
+              "inputTokens": 1427,
+              "outputTokens": 54,
+              "totalTokens": 1481
+            }
+          }
+        }
+      ],
+      "output_sha256": "80298f32b2b6ff05697ecfb7ac940ef183bf340e255dec868859730809f27263"
+    }
+  ]
+}

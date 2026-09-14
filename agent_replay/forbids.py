@@ -39,6 +39,13 @@ def parse(rule: str) -> tuple[str, dict]:
     )
 
 
+def referenced_tools(rule: str) -> list[str]:
+    """Every tool name a rule's own text names: the tool it forbids, and for a `when` rule, the other tool
+    its condition reads from. Raises ValueError via parse() if the rule doesn't match any known form."""
+    kind, g = parse(rule)
+    return [g["tool"], g["other"]] if kind == "when" else [g["tool"]]
+
+
 def _literal(raw: str):
     raw = raw.strip()
     if raw.lower() == "true":

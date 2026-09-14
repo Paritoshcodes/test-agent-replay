@@ -7,14 +7,18 @@
  * invented for the UI's convenience.
  */
 
-/** spike/gate_compare.py CAUSES. DIFFERENT_TOOL, DIFFERENT_ARGS and EXTRA_STEP were retired with the
- *  positional comparator (docs/DECISIONS.md, 2026-09-14) and can no longer be produced. */
+/** spike/gate_compare.py CAUSES, plus FORBIDDEN. DIFFERENT_TOOL, DIFFERENT_ARGS and EXTRA_STEP were
+ *  retired with the positional comparator (docs/DECISIONS.md, 2026-09-14) and can no longer be produced.
+ *  FORBIDDEN is agent_replay/evaluate.py's own addition (the contract layer built on top of gate_compare,
+ *  Phase 1 of the CLI packaging task): a human-authored `forbids` rule fired. Real dashboard data (Phase
+ *  2) can carry it even though no fixture here happens to; gate_compare.py itself never produces it. */
 export type Cause =
   | "MISSING_STEP"
   | "UNRECORDED"
   | "UNSOURCED_ARGUMENT"
   | "ORDER_VIOLATION"
-  | "DIFFERENT_ANSWER";
+  | "DIFFERENT_ANSWER"
+  | "FORBIDDEN";
 
 /** StepReport.attribution */
 export type Attribution = "ATTRIBUTABLE" | "UNATTRIBUTED";

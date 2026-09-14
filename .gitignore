@@ -3,7 +3,20 @@ __pycache__/
 *.pyc
 .env
 .DS_Store
-traces/
+# Trace recordings are large, machine/model-specific, and change on every re-record -- kept out of git
+# in general (a contract's yaml is the reviewable artifact, not the raw trace). Exception: the two
+# curated example scenarios the README walks through get committed on purpose, so a fresh clone can run
+# `agent-replay test vulnerable-dependency` / `customer-refund` with zero AWS. See README.md "Goldens in
+# version control" and docs/DECISIONS.md. Everything else a team records for itself stays --storage aws.
+traces/*
+!traces/vulnerable-dependency--1.json
+!traces/vulnerable-dependency--2.json
+!traces/vulnerable-dependency--3.json
+!traces/vulnerable-dependency--4.json
+!traces/vulnerable-dependency--5.json
+!traces/customer-refund--1.json
+!traces/customer-refund--2.json
 *.egg-info/
 .pytest_cache/
 .claude
+dashboard-api.zip

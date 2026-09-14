@@ -119,6 +119,59 @@ class AwsTraceStorage(TraceStorage):
         self._s3.put_object(Bucket=self.bucket_name, Key=key, Body=body, ContentType="application/json")
         return digest, len(body), False
 
+    def save_test_run(self, run_id: str, meta: dict, gate_run: dict) -> None:
+        """Persists a candidate TEST/GATE run for the dashboard (Phase 2, docs/DECISIONS.md): a
+        lightweight DynamoDB summary item -- no per-event items, a candidate run is read back as a
+        comparison result, never replayed -- plus the full comparison result in S3 via save_comparison().
+        Distinct from save(), which persists a REFERENCE recording with full per-event fidelity because
+        THAT does need replaying (spike/gate.py's GateToolTap matches against its individual events).
+        meta fields mirror save()'s: scenario/contract_hash/branch/pr_number/triggered_by/commit_sha (CI
+        provenance, None locally, commit_sha omitted rather than NULL -- see save()'s own comment for why)
+        plus verdict (PASS/FAIL/ERROR, this run's own outcome)."""
+        now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        item = {
+            "run_id": run_id, "sequence_number": 0, "item_type": "run_metadata", "run_kind": "candidate",
+            "agent_module": meta.get("agent_module", ""), "model_id": meta.get("model_id") or "",
+            "created_at": now, "scenario": meta.get("scenario"), "contract_hash": meta.get("contract_hash"),
+            "branch": meta.get("branch"), "pr_number": meta.get("pr_number"), "triggered_by": meta.get("triggered_by"),
+            "verdict": meta.get("verdict"), "accepted_by": None, "accepted_at": None,
+        }
+        if meta.get("commit_sha") is not None:
+            item["commit_sha"] = meta["commit_sha"]
+        self._ddb.put_item(Item=item)
+        self.save_comparison(run_id, gate_run)
+
+    def record_acceptance(self, run_id: str, accepted_by: str, accepted_at: str) -> None:
+        """Phase 3's accept flow: who accepted a run's diverging behaviour as the new baseline, and when.
+        A targeted UpdateItem on the run_metadata item only -- does not touch the contract itself (see
+        agent_replay/dashboard.py and README.md's "How an accepted change reaches the repo" for why this
+        dashboard never writes to git directly)."""
+        self._ddb.update_item(
+            Key={"run_id": run_id, "sequence_number": 0},
+            UpdateExpression="SET accepted_by = :who, accepted_at = :when",
+            ExpressionAttributeValues={":who": accepted_by, ":when": accepted_at},
+        )
+
+    def save_comparison(self, run_id: str, gate_run: dict) -> None:
+        """The dashboard's read API (agent_replay/lambda_handler.py, added Phase 2) needs somewhere to
+        read a run's full comparison result from -- nothing before this method persisted one at all; a
+        comparison only ever existed in memory for the duration of one `agent-replay test`/`gate` call.
+        Keyed by run_id directly (not content-addressed like every other payload here): a given run_id's
+        comparison is unique and immutable once written, so there is nothing to deduplicate against, and a
+        direct key lets the read side build Key=f"comparisons/{run_id}.json" with no DynamoDB lookup at
+        all. `gate_run` is the GateRun-shaped dict from agent_replay/dashboard.py's build_gate_run()."""
+        body = canonical(gate_run).encode("utf-8")
+        self._s3.put_object(Bucket=self.bucket_name, Key=f"comparisons/{run_id}.json", Body=body, ContentType="application/json")
+
+    def load_comparison(self, run_id: str) -> dict | None:
+        try:
+            obj = self._s3.get_object(Bucket=self.bucket_name, Key=f"comparisons/{run_id}.json")
+        except self._s3.exceptions.ClientError as e:
+            if e.response["Error"]["Code"] in ("NoSuchKey", "404"):
+                return None
+            raise
+        return json.loads(obj["Body"].read().decode("utf-8"))
+
     def _get_payload(self, digest: str, golden: bool):
         prefix = "golden" if golden else "runs"
         obj = self._s3.get_object(Bucket=self.bucket_name, Key=f"{prefix}/{digest}.json")
@@ -181,14 +234,32 @@ class AwsTraceStorage(TraceStorage):
             deduped += prompt_dedup + answer_dedup
             # prompt/final_answer are content-addressed like every other payload -- only hashes live here,
             # consistent with the rest of the design and keeping this item far under DynamoDB's 400KB cap.
-            batch.put_item(Item={
+            #
+            # commit_sha/branch/pr_number/triggered_by/scenario/contract_hash: CI provenance, read by the
+            # caller from GitHub Actions' own environment (agent_replay/ci.py) and always present as KEYS
+            # in `meta`, None when run locally -- boto3's Table resource serializes a Python None to a
+            # real DynamoDB NULL, not an absent attribute, so a dashboard can tell "ran locally" apart
+            # from "a bug forgot to set this". commit_sha is the ONE deliberate exception: it backs
+            # CommitIndex (a GSI added in infra/template.yaml, Phase 5), and a GSI key attribute must be a
+            # scalar type -- NULL cannot fill that role, and DynamoDB's own sparse-index behavior (an
+            # item missing a GSI key attribute is simply excluded from that index, not an error) is the
+            # well-documented, safe way to keep local/non-CI runs out of a commit-keyed index. So
+            # commit_sha is omitted from the Item entirely when absent, everything else stays an explicit
+            # NULL.
+            item = {
                 "run_id": run_id, "sequence_number": 0, "item_type": "run_metadata",
                 "agent_module": meta.get("agent_module", ""), "model_id": meta.get("model_id", ""),
                 "system_prompt_hash": sha256(meta.get("system_prompt", "")),
                 "created_at": now, "event_count": len(events), "total_bytes": total_bytes,
                 "prompt_hash": prompt_hash, "final_answer_hash": answer_hash,
+                "scenario": meta.get("scenario"), "contract_hash": meta.get("contract_hash"),
+                "branch": meta.get("branch"), "pr_number": meta.get("pr_number"),
+                "triggered_by": meta.get("triggered_by"),
                 "run_kind": meta.get("run_kind", "record"),
-            })
+            }
+            if meta.get("commit_sha") is not None:
+                item["commit_sha"] = meta["commit_sha"]
+            batch.put_item(Item=item)
         return {
             "backend": "aws", "table": self.table_name, "bucket": self.bucket_name,
             "ddb_items": len(events) + 1, "s3_objects_uploaded": uploaded, "s3_objects_deduped": deduped,

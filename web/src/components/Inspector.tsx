@@ -44,7 +44,7 @@ export function Inspector({ model, fixture, ui }: Props) {
 
       <motion.div className="ins-body" {...rise(reduced, 0.6, 10)}>
         <motion.div key={`${ui.modelIndex}-${k}`} initial={reduced ? false : { opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.28, ease: EASE }}>
-          <StepView model={model} fixture={fixture} k={k} />
+          <StepView model={model} provenance={fixture.provenance} k={k} />
         </motion.div>
       </motion.div>
 
@@ -76,7 +76,7 @@ export function Inspector({ model, fixture, ui }: Props) {
   );
 }
 
-function Block({ tone, label, children }: { tone: "g" | "c" | "r"; label: string; children: ReactNode }) {
+export function Block({ tone, label, children }: { tone: "g" | "c" | "r"; label: string; children: ReactNode }) {
   return (
     <div className="block">
       <div className="block-head">
@@ -88,7 +88,7 @@ function Block({ tone, label, children }: { tone: "g" | "c" | "r"; label: string
   );
 }
 
-function StepView({ model, fixture, k }: { model: ForkModel; fixture: Fixture; k: number }) {
+export function StepView({ model, provenance, k }: { model: ForkModel; provenance: string; k: number }) {
   const run = model.run;
   if (k === 0) {
     const a = run.args;
@@ -99,7 +99,7 @@ function StepView({ model, fixture, k }: { model: ForkModel; fixture: Fixture; k
           <span className="chip" data-tone={a.prompt ? "blue" : undefined}>
             {a.prompt ? "prompt override" : "nothing changed"}
           </span>
-          <span className="chip">{fixture.provenance.toLowerCase()}</span>
+          <span className="chip">{provenance.toLowerCase()}</span>
         </div>
         <Block tone="c" label="Candidate prompt">
           <pre className="code prose-code clamp">{a.prompt ?? run.golden.prompt}</pre>
@@ -169,7 +169,7 @@ function StepView({ model, fixture, k }: { model: ForkModel; fixture: Fixture; k
   );
 }
 
-function AnswerTab({ model }: { model: ForkModel }) {
+export function AnswerTab({ model }: { model: ForkModel }) {
   const run = model.run;
   const parts = useMemo(() => wordDiff(run.golden.final_answer.trim(), run.candidate_answer.trim()), [run]);
   const del = parts.filter((p) => p.kind === "del").reduce((s, p) => s + p.text.trim().split(/\s+/).length, 0);

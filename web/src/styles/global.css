@@ -174,6 +174,13 @@ code {
   -webkit-user-select: none;
 }
 
+/* CommitPage renders RunView inside .triage-main (a flex child, position: relative), not full-page --
+   .stage's own `position: fixed` would otherwise ignore that layout entirely and paint over the triage
+   rail. `position: absolute` on the same `inset: 0` fills the relatively-positioned parent instead. */
+.stage-embedded {
+  position: absolute;
+}
+
 .canvas {
   position: absolute;
   inset: 0;
@@ -284,6 +291,11 @@ code {
   font-family: var(--mono);
   font-size: 0.78rem;
   color: var(--fg-3);
+  text-decoration: none;
+  transition: color 0.15s var(--ease);
+}
+a.header-note:hover {
+  color: var(--fg);
 }
 .pulse {
   position: relative;
@@ -1330,6 +1342,353 @@ kbd {
 }
 @media (max-width: 1600px) {
   .hint-extra { display: none; }
+}
+
+/* ------------------------------------------------------------------ loading / error states */
+
+.state-screen {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  background: var(--bg);
+  color: var(--fg-2);
+  text-align: center;
+  padding: 24px;
+}
+.state-spinner {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1.5px solid var(--line-2);
+  border-top-color: var(--blue);
+  display: grid;
+}
+.state-spinner span {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.state-label {
+  font-family: var(--mono);
+  font-size: 0.86rem;
+  letter-spacing: 0.02em;
+  color: var(--fg-3);
+}
+.state-screen-error .state-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1.5px solid var(--red);
+  color: var(--red);
+  display: grid;
+  place-items: center;
+  font-family: var(--mono);
+  font-weight: 600;
+}
+.state-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--fg);
+  max-width: 480px;
+}
+.state-detail {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  color: var(--fg-3);
+  max-width: 520px;
+  line-height: 1.5;
+}
+.state-retry {
+  margin-top: 4px;
+  height: 34px;
+  padding: 0 16px;
+  border-radius: 8px;
+  border: 1px solid var(--line-2);
+  color: var(--fg);
+  font-size: 0.86rem;
+  font-weight: 500;
+  transition: background-color 0.15s var(--ease);
+}
+.state-retry:hover {
+  background: var(--bg-3);
+}
+
+/* ------------------------------------------------------------------ triage view (/commit/:sha) */
+
+.triage {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  background: var(--bg);
+  color: var(--fg);
+}
+.triage-rail {
+  width: 340px;
+  flex: none;
+  border-right: 1px solid var(--line);
+  background: rgba(10, 10, 10, 0.6);
+  overflow-y: auto;
+  padding: 20px 0;
+}
+.triage-rail-head {
+  padding: 0 20px 16px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 8px;
+}
+.triage-eyebrow {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fg-3);
+}
+.triage-sha {
+  margin-top: 6px;
+  font-family: var(--mono);
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+.triage-summary {
+  margin-top: 8px;
+  font-size: 0.82rem;
+  color: var(--fg-2);
+}
+.triage-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  text-align: left;
+  border-left: 2px solid transparent;
+  color: var(--fg-2);
+  text-decoration: none;
+  transition: background-color 0.15s var(--ease), color 0.15s var(--ease);
+}
+.triage-item:hover {
+  background: var(--bg-2);
+  color: var(--fg);
+}
+.triage-item[aria-current="true"] {
+  background: var(--bg-3);
+  border-left-color: var(--blue);
+  color: var(--fg);
+}
+.triage-item-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
+.triage-item-dot[data-v="PASS"] { background: var(--green); }
+.triage-item-dot[data-v="FAIL"] { background: var(--red); }
+.triage-item-dot[data-v="ERROR"] { background: var(--amber); }
+.triage-item-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.9rem;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.triage-item-verdict {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--fg-3);
+}
+.triage-main {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+}
+.triage-empty {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--fg-3);
+  font-size: 0.9rem;
+  padding: 24px;
+  text-align: center;
+}
+
+/* ------------------------------------------------------------------ diff panel (accept flow) */
+
+.diff-overlay {
+  position: fixed;
+  top: var(--header-h, 56px);
+  right: 0;
+  bottom: var(--timeline-h, 108px);
+  width: min(480px, 100%);
+  background: rgba(10, 10, 10, 0.96);
+  backdrop-filter: blur(16px) saturate(1.2);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  border-left: 1px solid var(--line-2);
+  overflow-y: auto;
+  z-index: 40;
+  padding: 20px;
+}
+.diff-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+.diff-title {
+  font-size: 1rem;
+  font-weight: 600;
+}
+.diff-close {
+  color: var(--fg-3);
+  font-size: 0.8rem;
+}
+.diff-close:hover {
+  color: var(--fg);
+}
+.diff-sub {
+  font-size: 0.82rem;
+  color: var(--fg-2);
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+.diff-section-label {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fg-3);
+  margin: 16px 0 8px;
+}
+.diff-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  margin-bottom: 4px;
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+.diff-line[data-kind="enter"] {
+  background: rgba(63, 207, 142, 0.07);
+  border: 1px solid rgba(63, 207, 142, 0.22);
+}
+.diff-line[data-kind="leave"] {
+  background: rgba(255, 97, 102, 0.07);
+  border: 1px solid rgba(255, 97, 102, 0.22);
+}
+.diff-line-marker {
+  flex: none;
+  font-weight: 700;
+}
+.diff-line[data-kind="enter"] .diff-line-marker { color: var(--green); }
+.diff-line[data-kind="leave"] .diff-line-marker { color: var(--red); }
+.diff-line-code {
+  flex: 1;
+  min-width: 0;
+  word-break: break-word;
+  color: var(--fg);
+}
+.diff-line-note {
+  display: block;
+  margin-top: 2px;
+  color: var(--fg-3);
+  font-size: 0.76rem;
+}
+.diff-accept-btn {
+  flex: none;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: 1px solid var(--line-2);
+  font-family: var(--sans);
+  font-size: 0.76rem;
+  font-weight: 500;
+  color: var(--fg-2);
+  transition: background-color 0.15s var(--ease), border-color 0.15s var(--ease), color 0.15s var(--ease);
+}
+.diff-accept-btn:hover {
+  border-color: var(--green);
+  color: var(--green);
+}
+.diff-accept-btn[data-accepted="true"] {
+  border-color: var(--green);
+  background: rgba(63, 207, 142, 0.12);
+  color: var(--green);
+}
+.diff-footer {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.diff-footer-empty {
+  font-size: 0.82rem;
+  color: var(--fg-3);
+}
+.diff-name-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.diff-name-input {
+  flex: 1;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: 1px solid var(--line-2);
+  background: var(--bg-1);
+  color: var(--fg);
+  font-family: var(--sans);
+  font-size: 0.84rem;
+}
+.diff-name-input:focus {
+  outline: none;
+  border-color: var(--blue);
+}
+.diff-download-btn {
+  width: 100%;
+  height: 36px;
+  border-radius: 8px;
+  background: var(--fg);
+  color: var(--bg);
+  font-weight: 600;
+  font-size: 0.86rem;
+}
+.diff-download-btn:hover {
+  background: #ffffff;
+}
+.diff-download-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.diff-accepted-note {
+  margin-top: 10px;
+  font-size: 0.78rem;
+  color: var(--fg-3);
+  line-height: 1.5;
+}
+.diff-toggle-btn {
+  position: fixed;
+  right: 20px;
+  bottom: calc(var(--timeline-h, 108px) + 16px);
+  z-index: 41;
+  height: 38px;
+  padding: 0 16px;
+  border-radius: 19px;
+  background: var(--red);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.84rem;
+  box-shadow: 0 8px 24px -8px rgba(255, 97, 102, 0.6);
+}
+.diff-toggle-btn:hover {
+  background: #ff7a7e;
 }
 
 @media (prefers-reduced-motion: reduce) {

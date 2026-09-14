@@ -24,6 +24,15 @@ deployed dashboard stack (`infra/template.yaml`) -- see "AWS and CI" below.
 
 ## Quickstart
 
+If you cloned this repo rather than starting from nothing: `agent-replay/scenarios.yaml`,
+`agent-replay/contracts/*.yaml`, and the reference recordings for the two scenarios this README actually
+walks through (`vulnerable-dependency`, `customer-refund`) are all committed -- `agent-replay test
+vulnerable-dependency` works immediately, zero AWS, right after `pip install -e .`. Every OTHER scenario's
+`traces/*.json` stays gitignored on purpose (see "Goldens in version control" below): if you add your own
+scenario and its reference recording isn't there, that's expected, not broken -- either `agent-replay
+record <it> --runs N` yourself (a real, billed Bedrock call) or point at AWS storage with `--storage aws`
+(see "AWS and CI" below) once it's configured.
+
 ```
 agent-replay init
 ```
@@ -35,9 +44,15 @@ and CI bootstrapping) is flags:
 
 ```
 agent-replay init --agent audit_agent --name vulnerable-dependency \
-  --input "Audit the dependencies pinned in file:///path/to/requirements.txt and give a deploy verdict." \
+  --input "Audit the dependencies pinned in file://{repo}/requirements.txt and give a deploy verdict." \
   --runs 3 --record
 ```
+
+Write a path inside this repo as `{repo}/relative/path` (or `file://{repo}/...` for a file URL), not a real
+absolute path. `{repo}` is expanded to THIS machine's actual checkout root at the moment a scenario's
+prompt is used, and collapsed back to `{repo}` before anything is written to a trace or a contract -- so
+the same scenario records and gates correctly whether it runs on your laptop or a CI runner. `init`
+collapses an absolute path typed by habit automatically, if it happens to point inside the repo.
 
 Read the contract it produced:
 
@@ -60,7 +75,7 @@ requires:
   - get_package_info(name=boto3)
   - get_package_info(name=strands-agents)
   - get_package_info(name=strands-agents-tools)
-  - read_manifest(url=file:///.../requirements.txt)
+  - read_manifest(url=file://{repo}/requirements.txt)
 
 # Called in SOME runs but not all. Present or absent, both PASS.
 permits: []
@@ -114,7 +129,7 @@ small:
    - get_package_info(name=boto3)
 -  - get_package_info(name=strands-agents)
 -  - get_package_info(name=strands-agents-tools)
-   - read_manifest(url=file:///.../requirements.txt)
+   - read_manifest(url=file://{repo}/requirements.txt)
 ```
 
 ## Commands
@@ -140,6 +155,46 @@ injected tool result for one run, against the same contract, without touching wh
 **permits** -- called in some runs but not all, annotated with how many (`# 3 of 5 runs`). Present or
 absent, both PASS: this is where legitimate run-to-run variation lives, so it never has to become noise in
 `requires` or a silent gap.
+
+Whether `permits` ends up with anything in it depends entirely on whether the agent has real discretion.
+A tightly-specified agent auditing a fully-pinned manifest (`requirements.txt`, the `vulnerable-dependency`
+scenario) leaves the model nothing to vary: five separate recordings of it produced an identical `requires`
+set and an empty `permits`, every time -- for a scenario like that, `--runs N`'s value is confidence that
+`requires` is stable, not tolerance of variation, since there is no variation to tolerate. Pointing the same
+unmodified agent at a manifest with two packages left unpinned (`vulnerable-dependency-mixed`,
+`agent-replay/fixtures/mixed-manifest.txt`) is a different story -- 5 runs produced this:
+
+```yaml
+requires:
+  - check_vulnerabilities(name=boto3, version=1.43.93)
+  - get_package_info(name=boto3)
+  - get_package_info(name=pyyaml)
+  - read_manifest(url=file://{repo}/agent-replay/fixtures/mixed-manifest.txt)
+
+permits:
+  - check_vulnerabilities(name=PyYAML, version=6.0.3)  # 2 of 5 runs
+  - check_vulnerabilities(name=pyyaml, version=5.4.1)  # 1 of 5 runs
+  - check_vulnerabilities(name=pyyaml, version=6.0.3)  # 1 of 5 runs
+  - check_vulnerabilities(name=pyyaml, version=latest)  # 1 of 5 runs
+  - check_vulnerabilities(name=requests, version=2.28.2)  # 1 of 5 runs
+  - check_vulnerabilities(name=requests, version=2.34.2)  # 2 of 5 runs
+  - check_vulnerabilities(name=requests, version=latest)  # 1 of 5 runs
+  - check_vulnerabilities(name=strands-agents, version=1.55.1)  # 3 of 5 runs
+  - get_package_info(name=requests)  # 4 of 5 runs
+  - get_package_info(name=strands-agents)  # 4 of 5 runs
+```
+
+That is `--runs N` doing exactly what it is for -- surfacing that the model's behavior on the two unpinned
+packages varies enough that no single run's trajectory should be trusted as "the" contract. It also
+surfaced something not designed for: exact-match keying means `pyyaml` and `PyYAML` are different contract
+entries, and a version string of literally `latest` is a real value the model sometimes emits instead of a
+resolved number -- both real observations about how live models phrase the same underlying action, not
+bugs in the tool. And it comes with a caveat worth stating plainly: an unpinned package's version has no
+upper bound on how many different ways a model can phrase checking it, so this specific contract still
+fails a fresh `agent-replay test` run some of the time on a `pyyaml` version string none of the 5 references
+happened to produce -- more reference runs narrow that, they do not eliminate it by construction. `--runs N`
+is a real, useful knob; it is not a silver bullet, and it is not this project's headline feature -- the
+contract format and the attribution boundary are.
 
 **order** -- `a -> b` means, in every run that called both, some call to `b` consumed `a`'s output
 (dependency-aware, not merely "a came first" -- reused directly from `spike/gate_compare.py`'s own
@@ -220,6 +275,76 @@ agent-replay test --json --format junit --junit-out report.xml
 ```
 
 Exit code is 0 on PASS, 1 on FAIL, consistently across every subcommand that gates a run.
+
+### The GitHub Actions workflow
+
+`.github/workflows/agent-replay.yml` runs on every pull request: installs the package, assumes an AWS role
+via OIDC (no long-lived keys), runs `agent-replay test --json --format junit --storage aws`, uploads the
+JUnit report as a build artifact, and posts (or updates, on re-runs) one PR comment summarizing every
+scenario's verdict. It fails the check -- blocking merge -- exactly when the gate itself fails.
+
+**This needs one-time setup by hand before it will work. Nothing here is done for you automatically:**
+
+1. **Deploy the OIDC trust role.** Read `infra/github-oidc.yaml` first -- it creates an IAM role your CI
+   assumes, scoped to your repository only, plus (optionally) the GitHub OIDC provider itself. Get your
+   `agent-replay-dev` stack's bucket name first:
+   ```
+   aws cloudformation describe-stacks --stack-name agent-replay-dev --region ap-south-1 \
+     --query "Stacks[0].Outputs"
+   ```
+   Then deploy (only if this AWS account has never trusted `token.actions.githubusercontent.com` before --
+   see the template's `CreateOidcProvider` parameter otherwise):
+   ```
+   aws cloudformation deploy \
+     --template-file infra/github-oidc.yaml \
+     --stack-name agent-replay-github-oidc \
+     --region ap-south-1 \
+     --parameter-overrides \
+         GitHubOrg=<your-github-org-or-username> \
+         GitHubRepo=<your-repo-name> \
+         AgentReplayBucketName=<bucket name from the command above> \
+     --capabilities CAPABILITY_NAMED_IAM
+   ```
+   Then read the role's ARN back out:
+   ```
+   aws cloudformation describe-stacks --stack-name agent-replay-github-oidc --region ap-south-1 \
+     --query "Stacks[0].Outputs[0].OutputValue" --output text
+   ```
+
+2. **Set repository variables** (GitHub repo -> Settings -> Secrets and variables -> Actions -> Variables
+   tab -- these are VARIABLES, not secrets; an IAM role ARN is not sensitive on its own):
+   - `AGENT_REPLAY_AWS_ROLE_ARN` -- the ARN from step 1.
+   - `AGENT_REPLAY_DASHBOARD_URL` -- optional. The PR comment's "View the fork" link is built from this
+     plus the commit SHA; leave it unset and the comment says so plainly instead of linking nowhere. **No
+     dashboard exists yet at any URL** -- this variable reserves the link's shape for when one does.
+
+3. **Nothing else.** No secrets need creating: `permissions: id-token: write` in the workflow plus the role
+   above is the entire credential path. `GH_TOKEN` for posting the PR comment is `${{ github.token }}`,
+   GitHub's own per-run token -- never a personal access token, never a secret you create.
+
+Do not enable auto-merge on this check without reading docs/LIMITATIONS.md's "Live-model variance" and
+"Finite N does not fully bound an unbounded-variation scenario" sections first: a live model call happens
+on every gate run, and a FAIL on an otherwise-unchanged PR is not automatically a regression.
+
+## Goldens in version control
+
+`traces/*.json` is gitignored, with two named exceptions: `vulnerable-dependency--1..5.json` and
+`customer-refund--1..2.json`, the reference recordings behind the two scenarios this README actually
+demonstrates. Committed on purpose, so a fresh clone can run the real Quickstart with zero AWS -- a
+baseline that only exists in S3/DynamoDB isn't a baseline a new contributor can even see.
+
+Every OTHER scenario's traces stay gitignored. The reason isn't size (the whole `traces/` directory is
+about 1MB; git does not care) -- it's that a trace is regenerated wholesale on every `agent-replay record`,
+and live model text differs every real run. Committing every scenario's traces would mean every re-record
+adds a large, opaque, non-reviewable JSON diff to history, forever -- exactly the kind of diff this
+project's whole design (the *contract* is the reviewable artifact, not the trace) exists to avoid a
+reviewer ever needing to read. Two scenarios, deliberately chosen to be stable and rarely re-recorded, pay
+that one-time cost; a team's own actively-iterated scenarios shouldn't.
+
+If you add a new scenario and want it to work the same way for other local contributors, either commit its
+`traces/*.json` the same way (add an explicit `.gitignore` exception, same as the two above) if it's meant
+to be a stable, rarely-changing example, or leave it gitignored and use `--storage aws` for anyone who
+needs it -- exactly what CI already does.
 
 ## Redaction
 

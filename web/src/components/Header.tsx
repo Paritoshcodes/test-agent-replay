@@ -113,7 +113,7 @@ export function Header({ fixture, selected, onSelect }: Props) {
   );
 }
 
-function Logo({ reduced }: { reduced: boolean }) {
+export function Logo({ reduced }: { reduced: boolean }) {
   const draw = (delay: number) =>
     reduced ? { initial: false as const } : { initial: { pathLength: 0 }, animate: { pathLength: 1 }, transition: { delay, duration: 0.9, ease: EASE } };
   return (

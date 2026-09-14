@@ -16,11 +16,13 @@ from dataclasses import dataclass, field
 
 from . import forbids as forbids_mod
 from . import paths
+from . import portable
 from .callsig import call_key
 from .contract import Contract
 
 paths.ensure_spike_importable()
-from gate import GateToolTap, _parse_mutate_args  # noqa: E402
+from agent import COUNTS  # noqa: E402 (spike/agent.py's real-execution counters, unchanged)
+from gate import GateToolTap, _parse_mutate_args, _token_totals  # noqa: E402
 from gate_compare import CAUSES as _EXISTING_CAUSES  # noqa: E402
 from gate_compare import _is_sourced  # noqa: E402
 
@@ -39,6 +41,11 @@ class ContractStep:
     cause: str | None
     attribution: str
     detail: str = ""
+    # spike/gate.py's GateToolTap sets gate_mutated on every candidate_trace item when --mutate touched
+    # this step's injected result (unchanged code); dropped from this dataclass in the original contract
+    # rewrite, silently -- a run made with --mutate showed no indication which step was altered, which a
+    # human could misread as a real behavioral difference instead of the harness's own injected change.
+    mutated: bool = False
 
 
 @dataclass
@@ -52,6 +59,9 @@ class ContractResult:
     n_model: int
     injected: int
     unrecorded: int
+    tool_bodies: int  # real tool executions during this run -- must be 0; every result is injected
+    input_tokens: int = 0
+    output_tokens: int = 0
 
 
 def merged_golden_events(reference_runs: list[dict]) -> list[dict]:
@@ -76,7 +86,12 @@ def run_and_evaluate(
     strict: bool = False,
 ) -> ContractResult:
     agent_mod = importlib.import_module(agent_module)
-    golden_events = merged_golden_events(reference_runs)
+    # Reference recordings are stored PORTABLE (see agent_replay/portable.py); GateToolTap does exact
+    # string equality against a live call's real arguments, so the pool it matches against must be
+    # widened back to THIS machine's real repo root, or every path-bearing call would come back
+    # "unrecorded" the moment the recording and the candidate run are on different machines/checkouts.
+    golden_events = portable.absolute_events(merged_golden_events(reference_runs))
+    tool_bodies_before = COUNTS["tool_bodies"]
 
     candidate_trace: list = []
     tap = GateToolTap(golden_events, candidate_trace, strict=strict, mutations=mutations or {})
@@ -86,16 +101,22 @@ def run_and_evaluate(
         candidate_trace, replay=False, model_id=resolved_model_id, system_prompt=resolved_system_prompt, tap=tap
     )
 
-    candidate_answer = str(agent(prompt))
+    # `prompt` (a scenario's `input`) is stored portable too; expand it to a real, fetchable path on THIS
+    # machine before the live model actually reads anything.
+    real_prompt = portable.to_absolute(prompt)
+    candidate_answer = str(agent(real_prompt))
     candidate_steps = [e for e in candidate_trace if e["type"] == "tool"]
-    context_text = f"{resolved_system_prompt} {prompt}"
+    context_text = f"{resolved_system_prompt} {real_prompt}"
 
     steps, first_divergence, attribution_boundary, verdict = _evaluate_steps(contract, candidate_steps, context_text)
     n_model = sum(e["type"] == "model" for e in candidate_trace)
+    in_tok, out_tok = _token_totals(candidate_trace)  # spike/gate.py, unchanged
     return ContractResult(
         scenario=contract.scenario, steps=steps, first_divergence=first_divergence,
         attribution_boundary=attribution_boundary, verdict=verdict, candidate_answer=candidate_answer,
         n_model=n_model, injected=tap.injected, unrecorded=tap.unrecorded,
+        tool_bodies=COUNTS["tool_bodies"] - tool_bodies_before,
+        input_tokens=in_tok, output_tokens=out_tok,
     )
 
 
@@ -125,7 +146,11 @@ def _evaluate_steps(
         step_no = e["gate_step"]
         name = e["input"]["name"]
         args = e["input"].get("input", {}) or {}
-        key = call_key(name, args)
+        # The contract's own requires/permits keys are portable (loaded straight from the committed
+        # file); `args` here is real/absolute (this run's actual, executable arguments). Collapse ONLY
+        # for the membership check -- `report.args` below stays the real value, for honest reporting of
+        # what actually happened on this run.
+        key = call_key(name, portable.portable_value(args))
         called_by_key.add(key)
         cause = None
         detail = ""
@@ -147,7 +172,7 @@ def _evaluate_steps(
                     break
 
         order_seen.add(name)
-        report = ContractStep(step=step_no, tool=name, args=args, gate_status=e.get("gate_status", "n/a"), cause=cause, attribution=attribution_for(step_no), detail=detail)
+        report = ContractStep(step=step_no, tool=name, args=args, gate_status=e.get("gate_status", "n/a"), cause=cause, attribution=attribution_for(step_no), detail=detail, mutated=bool(e.get("gate_mutated")))
         steps.append(report)
         if cause is not None and first_divergence is None:
             first_divergence = report

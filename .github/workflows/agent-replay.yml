@@ -1,0 +1,87 @@
+name: agent-replay
+
+# NOT pull_request_target. pull_request_target runs the WORKFLOW FILE from the base branch (so a fork
+# can't rewrite this file to steal more) but still grants it repo secrets / OIDC trust while checking out
+# the PR's OWN, untrusted code. That untrusted code here is not incidental: agent_replay/paths.py puts
+# spike/ on sys.path and imports it by module name, and agent-replay/scenarios.yaml names an agent MODULE
+# to import and RUN, both straight from the PR branch, before any model call even happens. A forked PR
+# could edit spike/ or scenarios.yaml to run arbitrary Python with this job's AWS credentials -- exactly
+# what pull_request_target would hand it. Plain `pull_request` keeps this workflow file pinned to the base
+# branch AND runs with no repo secrets / OIDC trust available to a fork by default, so a hostile fork's
+# `agent-replay test` fails closed (no AWS credentials) instead of succeeding with borrowed trust. That is
+# the point, not a bug: this workflow only has real access on PRs from branches of this repo itself.
+"on":
+  pull_request:
+
+permissions:
+  contents: read
+  id-token: write      # OIDC role assumption -- no long-lived AWS keys anywhere in this repo or its secrets
+  pull-requests: write # post/update the PR comment
+
+concurrency:
+  group: agent-replay-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install agent-replay
+        run: pip install -e .
+
+      # Requires one-time setup: see README.md "CI setup (do this by hand)". AGENT_REPLAY_AWS_ROLE_ARN is
+      # a repository VARIABLE (not a secret) -- an IAM role ARN is not itself sensitive, only the
+      # short-lived credentials STS hands back for it are, and those never touch a secret store here.
+      - name: Assume AWS role via OIDC
+        uses: aws-actions/configure-aws-credentials@v4.0.2
+        with:
+          role-to-assume: ${{ vars.AGENT_REPLAY_AWS_ROLE_ARN }}
+          aws-region: ap-south-1
+
+      # `--storage aws`, not local: traces/ is gitignored, so this checkout has zero local reference
+      # recordings (see docs/LIMITATIONS.md, "A fresh CI checkout has no local reference recordings").
+      # `set +e`/capture/`set -e` (not `continue-on-error:`) because GitHub Actions runs each step's
+      # script with `bash -e`, which would abort THIS SCRIPT at the failing line -- before the exit code
+      # could be captured -- if the gate FAILs, which is the expected, common case this step must survive.
+      - name: Gate the agent against its contracts
+        id: gate
+        run: |
+          set +e
+          agent-replay test --json --format junit --junit-out agent-replay-report.xml --storage aws \
+            > agent-replay-result.json
+          code=$?
+          set -e
+          [ -s agent-replay-result.json ] || echo '[]' > agent-replay-result.json
+          echo "exit_code=${code}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload JUnit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-replay-report
+          path: agent-replay-report.xml
+          if-no-files-found: warn
+
+      - name: Render PR comment
+        if: always()
+        env:
+          AGENT_REPLAY_DASHBOARD_URL: ${{ vars.AGENT_REPLAY_DASHBOARD_URL }}
+        run: python .github/scripts/render_pr_comment.py agent-replay-result.json > pr-comment.md
+
+      - name: Post or update PR comment
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: .github/scripts/post_pr_comment.sh "${{ github.event.pull_request.number }}" pr-comment.md
+
+      # The one step that decides whether this check blocks merge. Every step above ran regardless of the
+      # gate's own outcome (artifact + comment must exist either way); this is where that outcome finally
+      # surfaces as the job's own exit code.
+      - name: Fail the job if the gate failed
+        run: exit ${{ steps.gate.outputs.exit_code }}

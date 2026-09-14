@@ -1,0 +1,126 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  GitHub Actions OIDC trust for agent-replay CI: an IAM role the CI workflow assumes via
+  sts:AssumeRoleWithWebIdentity, scoped to one repository, with no long-lived AWS keys anywhere. A
+  SEPARATE template from infra/template.yaml (the DynamoDB+S3 data stack) on purpose -- an AWS account can
+  have only ONE OIDC provider per issuer URL, so a template that unconditionally tries to create the
+  token.actions.githubusercontent.com provider would fail to deploy in any account that already trusts
+  GitHub Actions for something else. CreateOidcProvider below makes that provider optional for exactly
+  that reason. NOT deployed by this task -- see the deploy command in README.md's CI setup section, run by
+  a human, after reviewing this file.
+
+Parameters:
+  GitHubOrg:
+    Type: String
+    Description: GitHub organization or user that owns the repository, e.g. "your-org".
+  GitHubRepo:
+    Type: String
+    Description: Repository name only (no org prefix), e.g. "agent-replay".
+  AllowedRef:
+    Type: String
+    Default: "ref:refs/heads/*"
+    Description: >
+      Which refs may assume this role, as the suffix of GitHub's OIDC "sub" claim
+      (repo:ORG/REPO:<this>). Default allows pull_request runs from any branch of this repo. Tighten to
+      e.g. "ref:refs/heads/main" to restrict to PRs whose workflow file itself lives on main.
+  CreateOidcProvider:
+    Type: String
+    AllowedValues: ["true", "false"]
+    Default: "true"
+    Description: >
+      "false" if this AWS account already has an OIDC provider for token.actions.githubusercontent.com
+      (check: aws iam list-open-id-connect-providers) -- only one may exist per account. When "false",
+      ExistingOidcProviderArn is required.
+  ExistingOidcProviderArn:
+    Type: String
+    Default: ""
+    Description: Used only when CreateOidcProvider is "false". The existing provider's ARN.
+  AgentReplayBucketName:
+    Type: String
+    Description: >
+      The BucketName output of the already-deployed infra/template.yaml stack (agent-replay-dev). Not
+      importable via Fn::ImportValue -- that template does not export it, deliberately left unmodified by
+      this template so the two stacks stay independently deployable; read it with
+      `aws cloudformation describe-stacks --stack-name agent-replay-dev --query "Stacks[0].Outputs"`.
+
+Conditions:
+  ShouldCreateProvider: !Equals [!Ref CreateOidcProvider, "true"]
+
+Resources:
+  GitHubOidcProvider:
+    Type: AWS::IAM::OIDCProvider
+    Condition: ShouldCreateProvider
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList:
+        - sts.amazonaws.com
+      ThumbprintList:
+        # AWS's IAM::OIDCProvider resource requires this field, but no longer actually validates the
+        # federated identity provider's TLS certificate against it for GitHub's well-known issuer -- AWS
+        # validates against the provider's real TLS chain instead. This is the long-published thumbprint
+        # from AWS's own GitHub-OIDC setup guide, kept for the resource schema's sake.
+        - 6938fd4d98bab03faadb97b34396831e3780aea1
+
+  GitHubActionsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: agent-replay-github-actions
+      Description: Assumed by agent-replay's CI workflow (.github/workflows/agent-replay.yml) via GitHub OIDC.
+      MaxSessionDuration: 900
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !If [ShouldCreateProvider, !Ref GitHubOidcProvider, !Ref ExistingOidcProviderArn]
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+              StringLike:
+                token.actions.githubusercontent.com:sub: !Sub "repo:${GitHubOrg}/${GitHubRepo}:${AllowedRef}"
+      Policies:
+        # Every action below is mapped 1:1 to an actual boto3 call in spike/storage.py's AwsTraceStorage
+        # (verified by reading it, not guessed) -- see docs/DECISIONS.md for the full call-to-action table.
+        - PolicyName: agent-replay-storage-access
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: DynamoDbAccess
+                Effect: Allow
+                Action:
+                  # save() uses Table.batch_writer(), which sends BatchWriteItem -- never individual
+                  # PutItem calls for a REFERENCE recording; load() uses Table.query(). GetItem is never
+                  # called. dynamodb:PutItem WAS correctly absent when this comment was first written, but
+                  # Phase 2's save_test_run() (spike/storage.py) added a direct Table.put_item() call for
+                  # a CANDIDATE run's lightweight metadata item -- exercised by this workflow on every
+                  # --storage aws test/gate call, not just recording -- so it belongs here now too.
+                  - dynamodb:Query
+                  - dynamodb:BatchWriteItem
+                  - dynamodb:PutItem
+                Resource: !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/agent-replay"
+              - Sid: S3Access
+                Effect: Allow
+                Action:
+                  # s3:HeadObject is not a real, distinct IAM action -- AWS's own S3 API reference for
+                  # HeadObject states its Permissions section requires s3:GetObject, and there is no
+                  # separate "s3:HeadObject" action in S3's IAM action namespace at all. _put_payload()'s
+                  # head_object() call (its dedup check) is therefore already authorized by s3:GetObject
+                  # below, the same action get_object() needs; an earlier draft of this policy listed
+                  # s3:HeadObject anyway, which IAM accepts syntactically but which authorizes nothing.
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource: !Sub "arn:aws:s3:::${AgentReplayBucketName}/*"
+              - Sid: DescribeStackForNameResolution
+                Effect: Allow
+                # spike/storage.py's AwsTraceStorage resolves table/bucket names via describe_stacks
+                # unless AGENT_REPLAY_TABLE/AGENT_REPLAY_BUCKET are set (docs/LIMITATIONS.md, "Scaling
+                # boundaries"). The CI workflow sets neither, so this permission is required; setting both
+                # env vars in the workflow instead would let this statement be dropped.
+                Action: cloudformation:DescribeStacks
+                Resource: !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/agent-replay-dev/*"
+
+Outputs:
+  RoleArn:
+    Description: Set this as the AGENT_REPLAY_AWS_ROLE_ARN repository VARIABLE (Settings > Secrets and variables > Actions > Variables).
+    Value: !GetAtt GitHubActionsRole.Arn

@@ -1,0 +1,1915 @@
+{
+  "prompt": "Customer says order A-1001 never arrived. Look it up and decide what to do.",
+  "final_answer": "<thinking> The refund has been successfully issued for order A-1001. I will inform the customer about the refund. </thinking>\n\n<response> I found that your order A-1001 was never delivered. Since it is refund eligible, I have issued a full refund for INR 2499. The refund ID is RF-5521. </response>\n",
+  "final_answer_sha256": "3bcac3beab366fbfba78ff8fb28eefb8d26319ea15bda6bbd0d507093084840f",
+  "agent_module": "agent",
+  "model_id": "apac.amazon.nova-lite-v1:0",
+  "system_prompt": "You are a customer support agent. Before deciding anything about an order, you must call lookup_order with its order ID. Base your decision only on the returned record. If the record shows the order was not delivered and is refund eligible, call issue_refund. Then give a short final answer stating what you found and what you did.",
+  "run_kind": "golden",
+  "events": [
+    {
+      "seq": 1,
+      "type": "model",
+      "input": {
+        "messages": [
+          {
+            "content": [
+              {
+                "text": "Customer says order A-1001 never arrived. Look it up and decide what to do."
+              }
+            ],
+            "role": "user"
+          }
+        ],
+        "system_prompt": "You are a customer support agent. Before deciding anything about an order, you must call lookup_order with its order ID. Base your decision only on the returned record. If the record shows the order was not delivered and is refund eligible, call issue_refund. Then give a short final answer stating what you found and what you did.",
+        "tool_specs": [
+          {
+            "description": "Look up an order by its ID and return the order record.",
+            "inputSchema": {
+              "json": {
+                "properties": {
+                  "order_id": {
+                    "description": "Parameter order_id",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "order_id"
+                ],
+                "type": "object"
+              }
+            },
+            "name": "lookup_order"
+          },
+          {
+            "description": "Issue a full refund for an order.",
+            "inputSchema": {
+              "json": {
+                "properties": {
+                  "order_id": {
+                    "description": "Parameter order_id",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "order_id"
+                ],
+                "type": "object"
+              }
+            },
+            "name": "issue_refund"
+          }
+        ]
+      },
+      "output": [
+        {
+          "messageStart": {
+            "role": "assistant"
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "<thinking"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": ">"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " I"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " need"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " to"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " first"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " look"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " up"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " the"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " order"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " A"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "-"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "1"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "0"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "0"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "1"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " using"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " the"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " `"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "lookup"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "_"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "order"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "`"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " tool"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "."
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " Depending"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " on"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " the"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " result"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": ","
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " I"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " will"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " decide"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " whether"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " to"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " issue"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " a"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " refund"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "."
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " </"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "thinking"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": ">\n"
+            }
+          }
+        },
+        {
+          "contentBlockStop": {
+            "contentBlockIndex": 0
+          }
+        },
+        {
+          "contentBlockStart": {
+            "contentBlockIndex": 1,
+            "start": {
+              "toolUse": {
+                "name": "lookup_order",
+                "toolUseId": "tooluse_MQVLhe3TegtZzuCBHLQnQb"
+              }
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 1,
+            "delta": {
+              "toolUse": {
+                "input": "{\"order_id\":\"A-1001\"}"
+              }
+            }
+          }
+        },
+        {
+          "contentBlockStop": {
+            "contentBlockIndex": 1
+          }
+        },
+        {
+          "messageStop": {
+            "stopReason": "tool_use"
+          }
+        },
+        {
+          "metadata": {
+            "metrics": {
+              "latencyMs": 677
+            },
+            "usage": {
+              "inputTokens": 553,
+              "outputTokens": 66,
+              "totalTokens": 619
+            }
+          }
+        }
+      ],
+      "output_sha256": "f1dfd57c830fddd375a27baf558fe62ebcbba74b839039079c08e756095c2bd6"
+    },
+    {
+      "seq": 2,
+      "type": "tool",
+      "input": {
+        "input": {
+          "order_id": "A-1001"
+        },
+        "name": "lookup_order",
+        "toolUseId": "tooluse_MQVLhe3TegtZzuCBHLQnQb"
+      },
+      "output": {
+        "content": [
+          {
+            "text": "order_id=A-1001; status=shipped; carrier=BlueDart; tracking=BD123456789IN; last_scan=2026-09-01 in transit, no delivery scan since; amount=INR 2499; refund_eligible=true"
+          }
+        ],
+        "status": "success",
+        "toolUseId": "tooluse_MQVLhe3TegtZzuCBHLQnQb"
+      },
+      "output_sha256": "979345bb0314a45a73257383fa1ca19e7d424e6f440bf21e07104157f9de05c4"
+    },
+    {
+      "seq": 3,
+      "type": "model",
+      "input": {
+        "messages": [
+          {
+            "content": [
+              {
+                "text": "Customer says order A-1001 never arrived. Look it up and decide what to do."
+              }
+            ],
+            "role": "user"
+          },
+          {
+            "content": [
+              {
+                "text": "<thinking> I need to first look up the order A-1001 using the `lookup_order` tool. Depending on the result, I will decide whether to issue a refund. </thinking>\n"
+              },
+              {
+                "toolUse": {
+                  "input": {
+                    "order_id": "A-1001"
+                  },
+                  "name": "lookup_order",
+                  "toolUseId": "tooluse_MQVLhe3TegtZzuCBHLQnQb"
+                }
+              }
+            ],
+            "role": "assistant"
+          },
+          {
+            "content": [
+              {
+                "toolResult": {
+                  "content": [
+                    {
+                      "text": "order_id=A-1001; status=shipped; carrier=BlueDart; tracking=BD123456789IN; last_scan=2026-09-01 in transit, no delivery scan since; amount=INR 2499; refund_eligible=true"
+                    }
+                  ],
+                  "status": "success",
+                  "toolUseId": "tooluse_MQVLhe3TegtZzuCBHLQnQb"
+                }
+              }
+            ],
+            "role": "user"
+          }
+        ],
+        "system_prompt": "You are a customer support agent. Before deciding anything about an order, you must call lookup_order with its order ID. Base your decision only on the returned record. If the record shows the order was not delivered and is refund eligible, call issue_refund. Then give a short final answer stating what you found and what you did.",
+        "tool_specs": [
+          {
+            "description": "Look up an order by its ID and return the order record.",
+            "inputSchema": {
+              "json": {
+                "properties": {
+                  "order_id": {
+                    "description": "Parameter order_id",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "order_id"
+                ],
+                "type": "object"
+              }
+            },
+            "name": "lookup_order"
+          },
+          {
+            "description": "Issue a full refund for an order.",
+            "inputSchema": {
+              "json": {
+                "properties": {
+                  "order_id": {
+                    "description": "Parameter order_id",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "order_id"
+                ],
+                "type": "object"
+              }
+            },
+            "name": "issue_refund"
+          }
+        ]
+      },
+      "output": [
+        {
+          "messageStart": {
+            "role": "assistant"
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "<thinking"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": ">"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " The"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " order"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " A"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "-"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "1"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "0"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "0"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "1"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " is"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " marked"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " as"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " shipped"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": ","
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " but"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " there"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " has"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " been"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " no"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " delivery"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " scan"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " since"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " the"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " last"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " scan"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " on"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": ""
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " 2"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "0"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "2"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "6"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "-"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "0"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "9"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "-"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "0"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "1"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "."
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " Since"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " it"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " is"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " marked"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " as"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " refund"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " eligible"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": ","
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " I"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " should"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " proceed"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " with"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " issuing"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " a"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " refund"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "."
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " </"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "thinking"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": ">"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " "
+            }
+          }
+        },
+        {
+          "contentBlockStop": {
+            "contentBlockIndex": 0
+          }
+        },
+        {
+          "contentBlockStart": {
+            "contentBlockIndex": 1,
+            "start": {
+              "toolUse": {
+                "name": "issue_refund",
+                "toolUseId": "tooluse_RWBZsEpW51beg22gkEbrgu"
+              }
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 1,
+            "delta": {
+              "toolUse": {
+                "input": "{\"order_id\":\"A-1001\"}"
+              }
+            }
+          }
+        },
+        {
+          "contentBlockStop": {
+            "contentBlockIndex": 1
+          }
+        },
+        {
+          "messageStop": {
+            "stopReason": "tool_use"
+          }
+        },
+        {
+          "metadata": {
+            "metrics": {
+              "latencyMs": 766
+            },
+            "usage": {
+              "inputTokens": 718,
+              "outputTokens": 83,
+              "totalTokens": 801
+            }
+          }
+        }
+      ],
+      "output_sha256": "89a683eb1de88758d30e7519b8f308cde32dd543608f5b388db50f0e433284c4"
+    },
+    {
+      "seq": 4,
+      "type": "tool",
+      "input": {
+        "input": {
+          "order_id": "A-1001"
+        },
+        "name": "issue_refund",
+        "toolUseId": "tooluse_RWBZsEpW51beg22gkEbrgu"
+      },
+      "output": {
+        "content": [
+          {
+            "text": "refund issued for order A-1001; refund_id=RF-5521; amount=INR 2499"
+          }
+        ],
+        "status": "success",
+        "toolUseId": "tooluse_RWBZsEpW51beg22gkEbrgu"
+      },
+      "output_sha256": "dfe0a64db5e8a94d3a5388d2249334fd3fad7aecbc6dcfc0a2937a1da8f13e3f"
+    },
+    {
+      "seq": 5,
+      "type": "model",
+      "input": {
+        "messages": [
+          {
+            "content": [
+              {
+                "text": "Customer says order A-1001 never arrived. Look it up and decide what to do."
+              }
+            ],
+            "role": "user"
+          },
+          {
+            "content": [
+              {
+                "text": "<thinking> I need to first look up the order A-1001 using the `lookup_order` tool. Depending on the result, I will decide whether to issue a refund. </thinking>\n"
+              },
+              {
+                "toolUse": {
+                  "input": {
+                    "order_id": "A-1001"
+                  },
+                  "name": "lookup_order",
+                  "toolUseId": "tooluse_MQVLhe3TegtZzuCBHLQnQb"
+                }
+              }
+            ],
+            "role": "assistant"
+          },
+          {
+            "content": [
+              {
+                "toolResult": {
+                  "content": [
+                    {
+                      "text": "order_id=A-1001; status=shipped; carrier=BlueDart; tracking=BD123456789IN; last_scan=2026-09-01 in transit, no delivery scan since; amount=INR 2499; refund_eligible=true"
+                    }
+                  ],
+                  "status": "success",
+                  "toolUseId": "tooluse_MQVLhe3TegtZzuCBHLQnQb"
+                }
+              }
+            ],
+            "role": "user"
+          },
+          {
+            "content": [
+              {
+                "text": "<thinking> The order A-1001 is marked as shipped, but there has been no delivery scan since the last scan on 2026-09-01. Since it is marked as refund eligible, I should proceed with issuing a refund. </thinking> "
+              },
+              {
+                "toolUse": {
+                  "input": {
+                    "order_id": "A-1001"
+                  },
+                  "name": "issue_refund",
+                  "toolUseId": "tooluse_RWBZsEpW51beg22gkEbrgu"
+                }
+              }
+            ],
+            "role": "assistant"
+          },
+          {
+            "content": [
+              {
+                "toolResult": {
+                  "content": [
+                    {
+                      "text": "refund issued for order A-1001; refund_id=RF-5521; amount=INR 2499"
+                    }
+                  ],
+                  "status": "success",
+                  "toolUseId": "tooluse_RWBZsEpW51beg22gkEbrgu"
+                }
+              }
+            ],
+            "role": "user"
+          }
+        ],
+        "system_prompt": "You are a customer support agent. Before deciding anything about an order, you must call lookup_order with its order ID. Base your decision only on the returned record. If the record shows the order was not delivered and is refund eligible, call issue_refund. Then give a short final answer stating what you found and what you did.",
+        "tool_specs": [
+          {
+            "description": "Look up an order by its ID and return the order record.",
+            "inputSchema": {
+              "json": {
+                "properties": {
+                  "order_id": {
+                    "description": "Parameter order_id",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "order_id"
+                ],
+                "type": "object"
+              }
+            },
+            "name": "lookup_order"
+          },
+          {
+            "description": "Issue a full refund for an order.",
+            "inputSchema": {
+              "json": {
+                "properties": {
+                  "order_id": {
+                    "description": "Parameter order_id",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "order_id"
+                ],
+                "type": "object"
+              }
+            },
+            "name": "issue_refund"
+          }
+        ]
+      },
+      "output": [
+        {
+          "messageStart": {
+            "role": "assistant"
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "<thinking"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": ">"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " The"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " refund"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " has"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " been"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " successfully"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " issued"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " for"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " order"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " A"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "-"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "1"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "0"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "0"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "1"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "."
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " I"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " will"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " inform"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " the"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " customer"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " about"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " the"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " refund"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "."
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " </"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "thinking"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": ">\n\n"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "<response"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": ">"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " I"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " found"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " that"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " your"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " order"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " A"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "-"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "1"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "0"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "0"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "1"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " was"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " never"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " delivered"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "."
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " Since"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " it"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " is"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " refund"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " eligible"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": ","
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " I"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " have"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " issued"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " a"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " full"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " refund"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " for"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " INR"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": ""
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " 2"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "4"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "9"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "9"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "."
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " The"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " refund"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " ID"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " is"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " RF"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "-"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "5"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "5"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "2"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "1"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "."
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": " </"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": "response"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": ">"
+            }
+          }
+        },
+        {
+          "contentBlockDelta": {
+            "contentBlockIndex": 0,
+            "delta": {
+              "text": ""
+            }
+          }
+        },
+        {
+          "contentBlockStop": {
+            "contentBlockIndex": 0
+          }
+        },
+        {
+          "messageStop": {
+            "stopReason": "end_turn"
+          }
+        },
+        {
+          "metadata": {
+            "metrics": {
+              "latencyMs": 755
+            },
+            "usage": {
+              "inputTokens": 860,
+              "outputTokens": 83,
+              "totalTokens": 943
+            }
+          }
+        }
+      ],
+      "output_sha256": "de0601eb7ed2ca4d3e1c58b649b233f9acaf7d1d7b13631c771f7fb02284c46a"
+    }
+  ]
+}

@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 
 import yaml
 
+from . import forbids as forbids_mod
 from . import paths
 from .callsig import call_key, parse_call, render_call
 
@@ -59,7 +60,13 @@ class Contract:
         return {call_key(t, a) for t, a, _ in self.permits}
 
 
-def derive(scenario: str, runs: list[list[dict]]) -> Contract:
+def derive(scenario: str, runs: list[list[dict]], existing_forbids: list[str] | None = None) -> Contract:
+    """existing_forbids: the forbids list of a previously-derived contract for this same scenario, if one
+    exists on disk. requires/permits/order are fully re-derived from `runs` every time -- that IS the
+    point, they describe what the recording shows -- but forbids is the one part of a contract a human
+    authors by hand, not something any recording could have produced, so re-deriving must carry it
+    forward unchanged rather than resetting it to empty. See forbids_warnings() for what happens when a
+    preserved rule outlives the tool it refers to."""
     if not runs:
         raise ValueError("cannot derive a contract from zero recorded runs")
     n = len(runs)
@@ -91,7 +98,25 @@ def derive(scenario: str, runs: list[list[dict]]) -> Contract:
     edge_sets = [_run_order_edges(events) for events in runs]
     order = sorted(set.intersection(*edge_sets)) if edge_sets else []
 
-    return Contract(scenario=scenario, n_runs=n, requires=requires, permits=permits, order=order, forbids=[])
+    return Contract(scenario=scenario, n_runs=n, requires=requires, permits=permits, order=order, forbids=list(existing_forbids or []))
+
+
+def forbids_warnings(forbids: list[str], runs: list[list[dict]]) -> list[str]:
+    """Call after derive() with the SAME `forbids` and `runs` used there. A preserved rule can now
+    reference a tool this recording never called -- not an error, the rule still applies verbatim the
+    next time that tool DOES appear, but silently keeping a rule that can never fire is exactly the kind
+    of thing a human reviewing a contract diff should be told about, not left to notice on their own."""
+    seen_tools = {e["input"]["name"] for events in runs for e in events if e["type"] == "tool"}
+    warnings = []
+    for rule in forbids:
+        try:
+            missing = sorted({t for t in forbids_mod.referenced_tools(rule) if t not in seen_tools})
+        except ValueError as e:
+            warnings.append(f"forbids rule {rule!r} could not be parsed: {e}")
+            continue
+        if missing:
+            warnings.append(f"forbids rule {rule!r} references {', '.join(missing)}, not seen in this recording -- kept, but it cannot fire until that tool appears again")
+    return warnings
 
 
 def render_yaml(c: Contract) -> str:

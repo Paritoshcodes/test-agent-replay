@@ -1,5 +1,5 @@
-# Derived from 5 recorded runs of scenario "vulnerable-dependency"
-# on 2026-09-14 by `agent-replay record vulnerable-dependency --runs 5`.
+# Derived from 5 recorded runs of scenario "vulnerable-dependency-mixed"
+# on 2026-09-14 by `agent-replay record vulnerable-dependency-mixed --runs 5`.
 #
 # This is a starting point, meant to be read and edited by a human -- `agent-replay test` enforces
 # exactly what is written below, nothing more. Move a `permits` entry into `requires` once you
@@ -9,15 +9,22 @@
 # Called in EVERY recorded run, with these exact arguments.
 requires:
   - check_vulnerabilities(name=boto3, version=1.43.93)
-  - check_vulnerabilities(name=strands-agents, version=1.55.1)
-  - check_vulnerabilities(name=strands-agents-tools, version=0.8.8)
   - get_package_info(name=boto3)
-  - get_package_info(name=strands-agents)
-  - get_package_info(name=strands-agents-tools)
-  - read_manifest(url=file://{repo}/requirements.txt)
+  - get_package_info(name=pyyaml)
+  - read_manifest(url=file://{repo}/agent-replay/fixtures/mixed-manifest.txt)
 
 # Called in SOME runs but not all. Present or absent, both PASS.
-permits: []
+permits:
+  - check_vulnerabilities(name=PyYAML, version=6.0.3)  # 2 of 5 runs
+  - check_vulnerabilities(name=pyyaml, version=5.4.1)  # 1 of 5 runs
+  - check_vulnerabilities(name=pyyaml, version=6.0.3)  # 1 of 5 runs
+  - check_vulnerabilities(name=pyyaml, version=latest)  # 1 of 5 runs
+  - check_vulnerabilities(name=requests, version=2.28.2)  # 1 of 5 runs
+  - check_vulnerabilities(name=requests, version=2.34.2)  # 2 of 5 runs
+  - check_vulnerabilities(name=requests, version=latest)  # 1 of 5 runs
+  - check_vulnerabilities(name=strands-agents, version=1.55.1)  # 3 of 5 runs
+  - get_package_info(name=requests)  # 4 of 5 runs
+  - get_package_info(name=strands-agents)  # 4 of 5 runs
 
 # Happens-before edges present in every recorded run (dependency-aware -- reuses
 # gate_compare.py's own edge logic, aggregated to tool-name granularity). "a -> b" means some

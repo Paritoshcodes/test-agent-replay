@@ -1,0 +1,145 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Dashboard read/accept API for agent-replay (Phase 2/3, docs/DECISIONS.md): one Lambda
+  (agent_replay/lambda_handler.py) behind an API Gateway HTTP API, read-only against the existing
+  agent-replay-dev DynamoDB table + S3 bucket, plus one narrow write path (Phase 3's accept-flow
+  provenance only -- never a contract file, see README.md "How an accepted change reaches the repo"). A
+  SEPARATE template from infra/template.yaml (the data stack) and infra/github-oidc.yaml (CI trust),
+  consistent with this project's own precedent: independently deployable, deletable, reviewable alone.
+
+Parameters:
+  AgentReplayTableName:
+    Type: String
+    Default: agent-replay
+  AgentReplayBucketName:
+    Type: String
+    Description: The BucketName output of the already-deployed infra/template.yaml stack (agent-replay-dev).
+  LambdaCodeBucket:
+    Type: String
+    Description: S3 bucket holding the Lambda deployment zip. Upload it BEFORE deploying this template -- see the deploy command in README.md.
+  LambdaCodeKey:
+    Type: String
+    Default: lambda-code/dashboard-api.zip
+
+Resources:
+  DashboardApiRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: agent-replay-dashboard-api
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: lambda.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        # CloudWatch Logs only -- AWS's own managed policy for exactly that, nothing broader.
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        # Every action here maps 1:1 to an actual boto3 call in agent_replay/lambda_handler.py: Query
+        # (CommitIndex), Scan (GET /scenarios), UpdateItem (POST accept), GetObject (comparisons/ only --
+        # this Lambda never reads golden/ or runs/, the raw trace payloads, at all).
+        - PolicyName: dashboard-api-access
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: DynamoDbAccess
+                Effect: Allow
+                Action:
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                  - dynamodb:UpdateItem
+                Resource:
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${AgentReplayTableName}"
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${AgentReplayTableName}/index/CommitIndex"
+              - Sid: S3ReadComparisons
+                Effect: Allow
+                Action: s3:GetObject
+                Resource: !Sub "arn:aws:s3:::${AgentReplayBucketName}/comparisons/*"
+              - Sid: S3ListComparisonsPrefix
+                # Without this, GetObject on a MISSING key returns 403 AccessDenied instead of 404
+                # NoSuchKey (S3 will not disclose whether an object exists to a caller who cannot list the
+                # bucket) -- handle_get_run's 404 branch (lambda_handler.py) never fires without it. Scoped
+                # to a bucket-level resource (ListBucket is a bucket action, not an object action) with a
+                # prefix condition matching the ONLY prefix this Lambda ever reads from, so it cannot be
+                # used to enumerate golden/ or runs/ or anything else in the bucket.
+                Effect: Allow
+                Action: s3:ListBucket
+                Resource: !Sub "arn:aws:s3:::${AgentReplayBucketName}"
+                Condition:
+                  StringLike:
+                    s3:prefix: "comparisons/*"
+
+  DashboardApiFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: agent-replay-dashboard-api
+      Runtime: python3.12
+      Handler: lambda_handler.handler
+      Role: !GetAtt DashboardApiRole.Arn
+      Timeout: 10
+      MemorySize: 256
+      Code:
+        S3Bucket: !Ref LambdaCodeBucket
+        S3Key: !Ref LambdaCodeKey
+      Environment:
+        Variables:
+          # Set directly rather than left to describe_stacks resolution (spike/storage.py's own default
+          # path): CloudFormation already knows both names from this stack's own parameters, so a hot
+          # Lambda never needs a describe_stacks call (or the IAM permission for one) at all.
+          AGENT_REPLAY_TABLE: !Ref AgentReplayTableName
+          AGENT_REPLAY_BUCKET: !Ref AgentReplayBucketName
+
+  HttpApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: agent-replay-dashboard-api
+      ProtocolType: HTTP
+      CorsConfiguration:
+        AllowOrigins: ["*"]
+        AllowMethods: ["GET", "POST", "OPTIONS"]
+        AllowHeaders: ["content-type"]
+
+  LambdaInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref DashboardApiFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*/*"
+
+  LambdaIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HttpApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt DashboardApiFunction.Arn
+      PayloadFormatVersion: "2.0"
+
+  RouteGetRun:
+    Type: AWS::ApiGatewayV2::Route
+    Properties: { ApiId: !Ref HttpApi, RouteKey: "GET /runs/{run_id}", Target: !Sub "integrations/${LambdaIntegration}" }
+
+  RouteGetCommit:
+    Type: AWS::ApiGatewayV2::Route
+    Properties: { ApiId: !Ref HttpApi, RouteKey: "GET /commits/{sha}", Target: !Sub "integrations/${LambdaIntegration}" }
+
+  RouteGetScenarios:
+    Type: AWS::ApiGatewayV2::Route
+    Properties: { ApiId: !Ref HttpApi, RouteKey: "GET /scenarios", Target: !Sub "integrations/${LambdaIntegration}" }
+
+  RoutePostAccept:
+    Type: AWS::ApiGatewayV2::Route
+    Properties: { ApiId: !Ref HttpApi, RouteKey: "POST /runs/{run_id}/accept", Target: !Sub "integrations/${LambdaIntegration}" }
+
+  Stage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref HttpApi
+      StageName: "$default"
+      AutoDeploy: true
+
+Outputs:
+  ApiUrl:
+    Description: Base URL for the dashboard API. Set as VITE_AGENT_REPLAY_API_URL for the dashboard frontend build.
+    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"

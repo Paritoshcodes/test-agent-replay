@@ -112,6 +112,7 @@ export const CAUSE_TEXT: Record<string, string> = {
   UNSOURCED_ARGUMENT: "A candidate call with no golden counterpart, carrying an argument found in no earlier output and no prompt.",
   ORDER_VIOLATION: "The same calls, but a happens-before edge from data flow in the golden run was broken.",
   DIFFERENT_ANSWER: "Trajectories match but the final text differs, and --fail-on-answer was set.",
+  FORBIDDEN: "A human-authored forbids rule matched this call -- not inferred from any recording.",
 };
 
 export const GATE_TEXT: Record<string, string> = {

@@ -1,58 +1,52 @@
-import { MotionConfig, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type PointerEvent } from "react";
-import { Engine } from "./engine/Engine";
-import { FIXTURES } from "./fixtures";
-import { Header } from "./components/Header";
-import { Hero } from "./components/Hero";
-import { ForkOverlay } from "./components/ForkOverlay";
-import { NodeCard } from "./components/NodeCard";
-import { Inspector } from "./components/Inspector";
-import { Timeline } from "./components/Timeline";
-import { useRoute } from "./router";
-import { CommitPage } from "./pages/CommitPage";
-import { RunPage } from "./pages/RunPage";
+import { useReducedMotion } from "motion/react";
+import { Engine } from "../engine/Engine";
+import type { GateRun } from "../types/gate";
+import type { CommitRunSummary } from "../api";
+import { RunHeader } from "./RunHeader";
+import { Hero } from "./Hero";
+import { ForkOverlay } from "./ForkOverlay";
+import { NodeCard } from "./NodeCard";
+import { RunInspector } from "./RunInspector";
+import { Timeline } from "./Timeline";
+import { DiffPanel } from "./DiffPanel";
 
-declare global {
-  interface Window {
-    __agentReplay?: Engine;
-  }
+interface Props {
+  gateRun: GateRun;
+  runId: string;
+  scenario: string;
+  summary?: CommitRunSummary;
+  backTo?: { sha: string; label: string };
+  navigate: (path: string) => void;
+  /** True when rendered inside CommitPage's triage layout, not standalone (RunPage/the fixture demo).
+   * `.stage`'s own `position: fixed` covers the full viewport regardless of its parent's layout -- fine
+   * standalone, but it would paint straight over the triage rail if left on here. See .stage-embedded. */
+  embedded?: boolean;
 }
 
-export default function App() {
-  const [route, navigate] = useRoute();
-
-  return (
-    <MotionConfig reducedMotion="user">
-      {route.name === "commit" ? (
-        <CommitPage sha={route.sha} navigate={navigate} />
-      ) : route.name === "run" ? (
-        <RunPage runId={route.runId} navigate={navigate} />
-      ) : (
-        <FixtureDemo />
-      )}
-    </MotionConfig>
-  );
-}
-
-/** The original fixture-driven demo (four static tapes) -- kept as the / landing page, completely
- * unchanged, per the task's "data-source change, not a redesign": real dashboard data lives at
- * /commit/:sha and /run/:runId instead of replacing this. */
-function FixtureDemo() {
+/**
+ * Hosts one Engine for one real run -- the SAME canvas/scrubbing/fork rendering App.tsx's fixture demo
+ * uses (Engine, ForkOverlay, NodeCard, Timeline, Hero: all imported unchanged), swapping only the
+ * fixture-specific chrome (RunHeader instead of the tape-switcher Header, RunInspector instead of
+ * Inspector's fixture-bound Source/Change tabs) plus the accept-flow's DiffPanel on a FAIL. This is the
+ * "data-source change, not a redesign" the task asked for: everything visual and interactive below the
+ * header/inspector line is identical code to the fixture demo.
+ */
+export function RunView({ gateRun, runId, scenario, summary, backTo, navigate, embedded }: Props) {
   const reduced = !!useReducedMotion();
+  const indexRef = useRef(0);
   const [engine] = useState(() => {
-    const e = new Engine(FIXTURES[0].run, 0);
+    const e = new Engine(gateRun, 0);
     e.reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     return e;
   });
   const ui = useSyncExternalStore(engine.subscribe, engine.getUI);
   const model = engine.model;
-  const fixture = FIXTURES[ui.modelIndex];
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
-  const [selected, setSelected] = useState(0);
   const [hover, setHoverState] = useState<string | null>(null);
-  const [, setViewport] = useState(0);
+  const loadedRunId = useRef(runId);
 
   const setHover = useCallback(
     (id: string | null) => {
@@ -62,36 +56,29 @@ function FixtureDemo() {
     [engine],
   );
 
-  const selectTape = useCallback(
-    (i: number) => {
-      setSelected(i);
-      setHover(null);
-      engine.loadRun(FIXTURES[i].run, i);
-    },
-    [engine, setHover],
-  );
-
   useEffect(() => {
     engine.setReduced(reduced);
   }, [engine, reduced]);
 
   useEffect(() => {
     engine.attach(canvasRef.current!, stageRef.current!);
-    const onResize = () => {
-      engine.resize();
-      setViewport((v) => v + 1);
-    };
+    const onResize = () => engine.resize();
     window.addEventListener("resize", onResize);
-    if (import.meta.env.DEV) window.__agentReplay = engine;
     return () => {
       window.removeEventListener("resize", onResize);
       engine.detach();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [engine]);
 
   useEffect(() => {
+    if (loadedRunId.current === runId) return;
+    loadedRunId.current = runId;
+    indexRef.current += 1;
     setHover(null);
-  }, [ui.modelIndex, setHover]);
+    engine.loadRun(gateRun, indexRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [runId, gateRun, engine]);
 
   useEffect(() => {
     const onKey = (ev: KeyboardEvent) => {
@@ -106,13 +93,11 @@ function FixtureDemo() {
       if (keys[ev.key]) {
         ev.preventDefault();
         keys[ev.key]();
-      } else if (/^[1-4]$/.test(ev.key)) {
-        selectTape(Number(ev.key) - 1);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [engine, selectTape]);
+  }, [engine]);
 
   const scrubDown = (e: PointerEvent<HTMLCanvasElement>) => {
     if (e.button !== 0) return;
@@ -129,13 +114,13 @@ function FixtureDemo() {
 
   return (
     <div
-      className="stage"
+      className={embedded ? "stage stage-embedded" : "stage"}
       ref={stageRef}
       onPointerMove={(e) => e.pointerType === "mouse" && engine.setCursor(e.clientX, e.clientY)}
       onPointerLeave={() => engine.clearCursor()}
     >
       <h1 className="sr-only">
-        Agent Replay. Tape {fixture.id}: {fixture.cause}, {fixture.title}.
+        Agent Replay. {scenario}: {model.run.result.verdict}.
       </h1>
 
       <canvas
@@ -156,10 +141,19 @@ function FixtureDemo() {
       <ForkOverlay engine={engine} model={model} ui={ui} hover={hover} setHover={setHover} />
 
       <Hero model={model} ui={ui} />
-      <Header fixture={fixture} selected={selected} onSelect={selectTape} />
-      <Inspector model={model} fixture={fixture} ui={ui} />
+      <RunHeader
+        runId={runId}
+        scenario={scenario}
+        agentModule={model.run.args.agent_module}
+        verdict={model.run.result.verdict}
+        storage={model.run.args.storage}
+        backTo={backTo}
+        navigate={navigate}
+      />
+      <RunInspector model={model} ui={ui} runId={runId} summary={summary} />
       <Timeline engine={engine} model={model} ui={ui} />
       <NodeCard engine={engine} model={model} hover={hover} />
+      <DiffPanel model={model} runId={runId} scenario={scenario} />
     </div>
   );
 }

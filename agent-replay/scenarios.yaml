@@ -5,12 +5,16 @@
 scenarios:
 - name: vulnerable-dependency
   agent: audit_agent
-  input: Audit the dependencies pinned in file:///D:/Project/agent_replay/requirements.txt and give a deploy verdict.
+  input: Audit the dependencies pinned in file://{repo}/requirements.txt and give a deploy verdict.
   runs: 3
 - name: customer-refund
   agent: agent
   input: Customer says order A-1001 never arrived. Look it up and decide what to do.
   runs: 2
+- name: vulnerable-dependency-mixed
+  agent: audit_agent
+  input: Audit the dependencies pinned in file://{repo}/agent-replay/fixtures/mixed-manifest.txt and give a deploy verdict.
+  runs: 5
 
 # Regex patterns applied to every recorded string (tool arguments, tool output, model answers)
 # before anything is written to disk or AWS. A blunt instrument, not a guarantee: a pattern that

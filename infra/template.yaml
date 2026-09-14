@@ -24,11 +24,50 @@ Resources:
           AttributeType: S
         - AttributeName: sequence_number
           AttributeType: N
+        # Only attributes used as a KEY (here or below) need declaring -- every other item attribute
+        # (scenario, contract_hash, branch, ...) stays schemaless, same as before.
+        - AttributeName: commit_sha
+          AttributeType: S
+        - AttributeName: created_at
+          AttributeType: S
       KeySchema:
         - AttributeName: run_id
           KeyType: HASH
         - AttributeName: sequence_number
           KeyType: RANGE
+      GlobalSecondaryIndexes:
+        # Lets a dashboard find every run for a commit with a real Query, not a full table Scan (the "no
+        # secondary index" limitation this project has documented since the storage layer was added --
+        # see docs/LIMITATIONS.md, "Scaling boundaries"). Sparse by construction: agent_replay/cli.py only
+        # ever writes commit_sha on the sequence_number=0 metadata item, and only when running in CI
+        # (spike/storage.py omits the attribute entirely, rather than writing it NULL, specifically so a
+        # local run's item is excluded from this index instead of erroring -- a GSI key attribute must be
+        # a scalar type, and NULL is not one). Ordered by created_at so a query naturally returns a
+        # commit's runs chronologically.
+        - IndexName: CommitIndex
+          KeySchema:
+            - AttributeName: commit_sha
+              KeyType: HASH
+            - AttributeName: created_at
+              KeyType: RANGE
+          Projection:
+            ProjectionType: INCLUDE
+            NonKeyAttributes:
+              - run_id
+              - scenario
+              - agent_module
+              - run_kind
+              - branch
+              - pr_number
+              - triggered_by
+              - contract_hash
+              # Added in Phase 2 (docs/DECISIONS.md): the original Phase 5 projection predates the
+              # verdict/accepted_by/accepted_at fields (Phase 2/3), so GET /commits/{sha} silently got
+              # NULL verdicts back from the GSI even though the base table item had the real value --
+              # found by actually using the read path, not by re-reading the design.
+              - verdict
+              - accepted_by
+              - accepted_at
       Tags:
         - Key: Project
           Value: !Ref ProjectTag
