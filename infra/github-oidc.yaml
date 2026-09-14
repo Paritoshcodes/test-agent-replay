@@ -66,7 +66,7 @@ Resources:
     Properties:
       RoleName: agent-replay-github-actions
       Description: Assumed by agent-replay's CI workflow (.github/workflows/agent-replay.yml) via GitHub OIDC.
-      MaxSessionDuration: 900
+      MaxSessionDuration: 3600
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:

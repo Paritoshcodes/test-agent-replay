@@ -279,9 +279,11 @@ Exit code is 0 on PASS, 1 on FAIL, consistently across every subcommand that gat
 ### The GitHub Actions workflow
 
 `.github/workflows/agent-replay.yml` runs on every pull request: installs the package, assumes an AWS role
-via OIDC (no long-lived keys), runs `agent-replay test --json --format junit --storage aws`, uploads the
-JUnit report as a build artifact, and posts (or updates, on re-runs) one PR comment summarizing every
-scenario's verdict. It fails the check -- blocking merge -- exactly when the gate itself fails.
+via OIDC (no long-lived keys), runs `agent-replay test vulnerable-dependency --json --format junit --storage
+aws` (scoped to the one scenario currently recorded in the deployed AWS account -- widen back to every
+scenario once the rest are recorded there too), uploads the JUnit report as a build artifact, and posts (or
+updates, on re-runs) one PR comment summarizing that scenario's verdict. It fails the check -- blocking
+merge -- exactly when the gate itself fails.
 
 **This needs one-time setup by hand before it will work. Nothing here is done for you automatically:**
 

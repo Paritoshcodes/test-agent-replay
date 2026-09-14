@@ -49,11 +49,18 @@ jobs:
       # `set +e`/capture/`set -e` (not `continue-on-error:`) because GitHub Actions runs each step's
       # script with `bash -e`, which would abort THIS SCRIPT at the failing line -- before the exit code
       # could be captured -- if the gate FAILs, which is the expected, common case this step must survive.
+      #
+      # Explicitly scoped to `vulnerable-dependency`, not every scenario in scenarios.yaml: as of this
+      # writing, only that scenario has ever been recorded with --storage aws (confirmed via direct
+      # DynamoDB lookups). customer-refund and vulnerable-dependency-mixed have zero reference recordings
+      # in the real AWS account -- testing them here would ERROR on every run from missing data, not from
+      # any real regression, making a clean baseline impossible. Widen this back to no scenario argument
+      # (testing everything) once those two are recorded to AWS.
       - name: Gate the agent against its contracts
         id: gate
         run: |
           set +e
-          agent-replay test --json --format junit --junit-out agent-replay-report.xml --storage aws \
+          agent-replay test vulnerable-dependency --json --format junit --junit-out agent-replay-report.xml --storage aws \
             > agent-replay-result.json
           code=$?
           set -e
