@@ -151,7 +151,11 @@ def _persist_for_dashboard(scenario: Scenario, c, cpath: Path, r: evaluate_mod.C
             {"agent_module": scenario.agent, "model_id": model_id, "scenario": scenario.name, "contract_hash": contract_hash, "verdict": r.verdict, **ci},
             gate_run,
         )
-        print(f"  dashboard: saved {run_id}")
+        # stderr, NOT stdout: under --json, stdout carries ONLY the machine-readable result document.
+        # This line used to be a bare print(), which prepended "  dashboard: saved <id>" to the JSON and
+        # broke every CI consumer with "JSONDecodeError: Expecting value: line 1 column 3". The failure
+        # branch below already used _err() -- this is the same channel, applied consistently.
+        _err(f"  dashboard: saved {run_id}")
     except Exception as e:
         _err(f"warning: could not persist dashboard data for {scenario.name!r} ({type(e).__name__}: {e}) -- gate result above is unaffected")
 
