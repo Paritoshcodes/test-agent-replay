@@ -27,9 +27,9 @@ import json
 import os
 import pathlib
 
-from agent import canonical, sha256
+from .. import paths
+from .agent import canonical, sha256
 
-TRACES_DIR = pathlib.Path(__file__).resolve().parent.parent / "traces"
 REGION = "ap-south-1"
 STACK_NAME = os.environ.get("AGENT_REPLAY_STACK", "agent-replay-dev")
 
@@ -49,8 +49,11 @@ class TraceStorage(abc.ABC):
 class LocalTraceStorage(TraceStorage):
     """Behaviour-preserving wrapper around the plain JSON file record.py/replay.py always used."""
 
-    def __init__(self, traces_dir: pathlib.Path = TRACES_DIR):
-        self.traces_dir = traces_dir
+    def __init__(self, traces_dir: pathlib.Path | None = None):
+        # Resolved lazily, at construction time, not a frozen module-level constant (see paths.traces_dir's
+        # docstring): a class-level default would bind Path.cwd() once at IMPORT time, before cli.py's
+        # main() has even had a chance to apply --project-root/AGENT_REPLAY_ROOT.
+        self.traces_dir = traces_dir if traces_dir is not None else paths.traces_dir()
 
     def _path(self, run_id: str) -> pathlib.Path:
         return self.traces_dir / f"{run_id}.json"
@@ -130,7 +133,13 @@ class AwsTraceStorage(TraceStorage):
         plus verdict (PASS/FAIL/ERROR, this run's own outcome)."""
         now = datetime.datetime.now(datetime.timezone.utc).isoformat()
         item = {
-            "run_id": run_id, "sequence_number": 0, "item_type": "run_metadata", "run_kind": "candidate",
+            # Phase 2.1 (docs/DECISIONS.md): run_kind is now read from meta, defaulting to "candidate" --
+            # byte-identical to before this default existed for every existing caller (agent_replay/
+            # cli.py's _persist_for_dashboard never sets "run_kind" in its own meta dict at all, so it still
+            # gets "candidate" here exactly as it always did). agent_replay/lambda_fork_worker.py is the
+            # only caller that passes "fork", so a fork's own persisted comparison result is distinguishable
+            # from an ordinary `agent-replay test`/`gate` candidate run at the same read API.
+            "run_id": run_id, "sequence_number": 0, "item_type": "run_metadata", "run_kind": meta.get("run_kind", "candidate"),
             "agent_module": meta.get("agent_module", ""), "model_id": meta.get("model_id") or "",
             "created_at": now, "scenario": meta.get("scenario"), "contract_hash": meta.get("contract_hash"),
             "branch": meta.get("branch"), "pr_number": meta.get("pr_number"), "triggered_by": meta.get("triggered_by"),

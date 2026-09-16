@@ -8,15 +8,18 @@ __pycache__/
 # curated example scenarios the README walks through get committed on purpose, so a fresh clone can run
 # `agent-replay test vulnerable-dependency` / `customer-refund` with zero AWS. See README.md "Goldens in
 # version control" and docs/DECISIONS.md. Everything else a team records for itself stays --storage aws.
-traces/*
-!traces/vulnerable-dependency--1.json
-!traces/vulnerable-dependency--2.json
-!traces/vulnerable-dependency--3.json
-!traces/vulnerable-dependency--4.json
-!traces/vulnerable-dependency--5.json
-!traces/customer-refund--1.json
-!traces/customer-refund--2.json
+# Phase 0 fix (docs/DECISIONS.md): traces now live at agent-replay/traces/, next to the contracts they
+# back, not a top-level traces/ sibling -- a golden and its contract are one artifact.
+agent-replay/traces/*
+!agent-replay/traces/vulnerable-dependency--1.json
+!agent-replay/traces/vulnerable-dependency--2.json
+!agent-replay/traces/vulnerable-dependency--3.json
+!agent-replay/traces/vulnerable-dependency--4.json
+!agent-replay/traces/vulnerable-dependency--5.json
+!agent-replay/traces/customer-refund--1.json
+!agent-replay/traces/customer-refund--2.json
 *.egg-info/
 .pytest_cache/
 .claude
 dashboard-api.zip
+.build/

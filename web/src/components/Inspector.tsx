@@ -4,8 +4,17 @@ import type { UIState } from "../engine/Engine";
 import { CAUSE_TEXT, GATE_TEXT, isTool, syntheticError, type ForkModel } from "../engine/model";
 import { wordDiff } from "../engine/diff";
 import type { Fixture } from "../fixtures";
+import type { ToolCall } from "../types/gate";
 import { CallCode } from "./code";
 import { EASE, Hairline, Odometer, pad, rise } from "./motion";
+
+function ForkFromHereButton({ step, call, onForkFromHere }: { step: number; call: ToolCall; onForkFromHere: (step: number, tool: string, args: Record<string, unknown>) => void }) {
+  return (
+    <button type="button" className="fork-from-here-btn" onClick={() => onForkFromHere(step, call.tool, call.args)}>
+      Fork from here
+    </button>
+  );
+}
 
 interface Props {
   model: ForkModel;
@@ -88,7 +97,19 @@ export function Block({ tone, label, children }: { tone: "g" | "c" | "r"; label:
   );
 }
 
-export function StepView({ model, provenance, k }: { model: ForkModel; provenance: string; k: number }) {
+export function StepView({
+  model,
+  provenance,
+  k,
+  onForkFromHere,
+}: {
+  model: ForkModel;
+  provenance: string;
+  k: number;
+  /** Phase 2.2 (docs/DECISIONS.md): omitted by every caller except RunInspector.tsx -- the old fixture
+   *  demo (Inspector.tsx's own default export, above) never passes this, so it renders nothing new at all. */
+  onForkFromHere?: (step: number, tool: string, args: Record<string, unknown>) => void;
+}) {
   const run = model.run;
   if (k === 0) {
     const a = run.args;
@@ -139,7 +160,17 @@ export function StepView({ model, provenance, k }: { model: ForkModel; provenanc
     );
   }
 
-  const row = run.result.steps[k - 1];
+  // Phase 2.2 bug find (docs/DECISIONS.md): this used to be a bare `run.result.steps[k - 1]` -- correct
+  // ONLY when step numbers are gapless and already in array order, true for the old two-lane engine's own
+  // model.ts (buildModel's own docstring: k IS array position, by construction) but NOT true once the
+  // swimlane engine's REAL step numbers (SwimlaneEngine's playhead, threaded into `ui.step` by RunView.tsx
+  // for a real run) can arrive out of numeric order -- a pass-through call's OWN event finishes appending
+  // to candidate_trace AFTER its nested child's (agent_replay/evaluate.py's own documented ordering), so
+  // e.g. billing-balance's real array order is [step 1, step 3, step 2]. Playhead k=3 (check_balance) was
+  // silently showing steps[2] (billing_specialist, step 2) instead -- found while wiring "Fork from here"
+  // to the currently-inspected step, which made the wrong tool name/args show up for forking. Matching by
+  // the row's OWN `.step` field is correct in both cases (array-order-equals-step-number, and not).
+  const row = run.result.steps.find((s) => s.step === k) ?? run.result.steps[k - 1];
   const call = row.candidate ?? row.golden;
   return (
     <>
@@ -163,6 +194,12 @@ export function StepView({ model, provenance, k }: { model: ForkModel; provenanc
         <Block tone="r" label="Injected result">
           <pre className="code c-err">{syntheticError(row.candidate)}</pre>
         </Block>
+      )}
+      {/* Phase 2.2 (docs/DECISIONS.md): "Fork from here" -- only on a step with an actual RECORDED tool
+          result (gate_status "recorded"), since forking mutates that recording's own injected output; a
+          MISSING_STEP or unrecorded/synthetic-error row has no real recorded result to mutate at all. */}
+      {onForkFromHere && row.gate_status === "recorded" && isTool(row.candidate) && (
+        <ForkFromHereButton step={row.step} call={row.candidate} onForkFromHere={onForkFromHere} />
       )}
       <p className="prose">{row.cause ? CAUSE_TEXT[row.cause] : GATE_TEXT[row.gate_status]}</p>
     </>

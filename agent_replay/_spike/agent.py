@@ -145,11 +145,25 @@ class StoredResultTool(AgentTool):
 class ToolTap(HookProvider):
     """Records tool calls via AfterToolCallEvent, or swaps in StoredResultTool via BeforeToolCallEvent.selected_tool."""
 
-    def __init__(self, trace: list, replay: bool = False):
+    def __init__(self, trace: list, replay: bool = False, agent_name: str | None = None):
         self.trace = trace
         self.replay = replay
         self._recorded = {e["input"]["toolUseId"]: e for e in trace if e["type"] == "tool"} if replay else {}
         self.replayed = 0
+        # Defaults True: every existing caller (build_agent()'s own hooks=[tap] construction) never sets
+        # this, so behavior is byte-identical to before this flag existed. Added for agent_replay/
+        # adapter.py's ScopedInstrumentation (Phase 2, docs/DECISIONS.md) -- attaching this hook to an
+        # agent this project did not construct, via HookRegistry.add_hook(), which has no public
+        # unregister method (verified against the installed SDK source); detach() sets this False instead
+        # of trying to remove the SDK-side registration.
+        self.active = True
+        # None (default): behavior unchanged from before this parameter existed -- the caller stamps
+        # `agent` on the trace itself afterward (agent_replay/evaluate.py's post-hoc setdefault). Set to a
+        # real name for Phase 3's nested capture: one ToolTap instance per discovered agent (supervisor,
+        # each specialist), attached only to THAT agent's own hooks, so it only ever sees that agent's own
+        # tool calls -- stamping immediately, at capture time, is then unambiguous, no need to inspect
+        # which agent a shared hook instance's event came from.
+        self.agent_name = agent_name
 
     def register_hooks(self, registry: HookRegistry, **kwargs) -> None:
         if self.replay:
@@ -158,9 +172,15 @@ class ToolTap(HookProvider):
             registry.add_callback(AfterToolCallEvent, self._capture)
 
     def _capture(self, event: AfterToolCallEvent) -> None:
+        if not self.active:
+            return
         append_event(self.trace, "tool", event.tool_use, event.result)
+        if self.agent_name is not None:
+            self.trace[-1]["agent"] = self.agent_name
 
     def _inject(self, event: BeforeToolCallEvent) -> None:
+        if not self.active:
+            return
         recorded = self._recorded.get(event.tool_use["toolUseId"])
         if recorded is None or canonical(recorded["input"]) != canonical(event.tool_use):
             raise RuntimeError(f"replay diverged: tool call {event.tool_use['toolUseId']} not in trace")

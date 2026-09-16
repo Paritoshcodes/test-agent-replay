@@ -28,7 +28,7 @@ If you cloned this repo rather than starting from nothing: `agent-replay/scenari
 `agent-replay/contracts/*.yaml`, and the reference recordings for the two scenarios this README actually
 walks through (`vulnerable-dependency`, `customer-refund`) are all committed -- `agent-replay test
 vulnerable-dependency` works immediately, zero AWS, right after `pip install -e .`. Every OTHER scenario's
-`traces/*.json` stays gitignored on purpose (see "Goldens in version control" below): if you add your own
+`agent-replay/traces/*.json` stays gitignored on purpose (see "Goldens in version control" below): if you add your own
 scenario and its reference recording isn't there, that's expected, not broken -- either `agent-replay
 record <it> --runs N` yourself (a real, billed Bedrock call) or point at AWS storage with `--storage aws`
 (see "AWS and CI" below) once it's configured.
@@ -267,7 +267,7 @@ actually new," not "nothing like this existed."
 ## AWS and CI
 
 `--storage aws` persists recordings to the deployed stack (`infra/template.yaml`: a DynamoDB index plus a
-content-addressed S3 bucket) instead of `traces/*.json`. Same commands, same contracts, just
+content-addressed S3 bucket) instead of `agent-replay/traces/*.json`. Same commands, same contracts, just
 `--storage aws` on `record`/`test`/`gate`/`replay`. Wire the gate into CI with:
 
 ```
@@ -330,12 +330,12 @@ on every gate run, and a FAIL on an otherwise-unchanged PR is not automatically 
 
 ## Goldens in version control
 
-`traces/*.json` is gitignored, with two named exceptions: `vulnerable-dependency--1..5.json` and
+`agent-replay/traces/*.json` is gitignored, with two named exceptions: `vulnerable-dependency--1..5.json` and
 `customer-refund--1..2.json`, the reference recordings behind the two scenarios this README actually
 demonstrates. Committed on purpose, so a fresh clone can run the real Quickstart with zero AWS -- a
 baseline that only exists in S3/DynamoDB isn't a baseline a new contributor can even see.
 
-Every OTHER scenario's traces stay gitignored. The reason isn't size (the whole `traces/` directory is
+Every OTHER scenario's traces stay gitignored. The reason isn't size (the whole `agent-replay/traces/` directory is
 about 1MB; git does not care) -- it's that a trace is regenerated wholesale on every `agent-replay record`,
 and live model text differs every real run. Committing every scenario's traces would mean every re-record
 adds a large, opaque, non-reviewable JSON diff to history, forever -- exactly the kind of diff this
@@ -344,7 +344,7 @@ reviewer ever needing to read. Two scenarios, deliberately chosen to be stable a
 that one-time cost; a team's own actively-iterated scenarios shouldn't.
 
 If you add a new scenario and want it to work the same way for other local contributors, either commit its
-`traces/*.json` the same way (add an explicit `.gitignore` exception, same as the two above) if it's meant
+`agent-replay/traces/*.json` the same way (add an explicit `.gitignore` exception, same as the two above) if it's meant
 to be a stable, rarely-changing example, or leave it gitignored and use `--storage aws` for anyone who
 needs it -- exactly what CI already does.
 

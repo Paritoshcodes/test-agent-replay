@@ -10,10 +10,7 @@ from __future__ import annotations
 
 import re
 
-from . import paths
-
-paths.ensure_spike_importable()
-from agent import sha256  # noqa: E402 (spike/agent.py, unchanged)
+from ._spike.agent import sha256
 
 _MASK = "[REDACTED]"
 

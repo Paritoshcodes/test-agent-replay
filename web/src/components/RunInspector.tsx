@@ -11,6 +11,15 @@ interface Props {
   ui: UIState;
   runId: string;
   summary?: CommitRunSummary;
+  /** Phase 1 (docs/DECISIONS.md): collapsible panels. Both default true/false as if this prop never
+   *  existed, for any other caller. `open=false` slides this panel out of view (its own CSS handles the
+   *  transform/opacity); `narrow=true` switches it from reserving layout width to an overlay drawer. */
+  open?: boolean;
+  narrow?: boolean;
+  onClose?: () => void;
+  /** Phase 2.2 (docs/DECISIONS.md): "Fork from here" -- threaded straight through to StepView, which
+   *  renders the button only on a step with an actual recorded tool result. */
+  onForkFromHere?: (step: number, tool: string, args: Record<string, unknown>) => void;
 }
 
 type Tab = "answer" | "run";
@@ -22,13 +31,13 @@ const TABS: { id: Tab; label: string }[] = [
 /** Same shell as Inspector.tsx (.inspector, tabs, step view) for a single REAL run instead of a static
  * fixture -- "Change"/"Source" (fixture-provenance concepts) are replaced by a "Run" tab showing what
  * this dashboard actually knows about the run: who triggered it, when, and its acceptance state. */
-export function RunInspector({ model, ui, runId, summary }: Props) {
+export function RunInspector({ model, ui, runId, summary, open = true, narrow = false, onClose, onForkFromHere }: Props) {
   const reduced = !!useReducedMotion();
   const [tab, setTab] = useState<Tab>("answer");
   const k = Math.max(0, ui.step);
 
   return (
-    <aside className="inspector" aria-label="Inspector">
+    <aside className="inspector" aria-label="Inspector" data-open={open} data-narrow={narrow} aria-hidden={!open}>
       <Hairline axis="y" className="inspector-rule" delay={0.2} />
 
       <motion.div className="ins-head" {...rise(reduced, 0.5, 6)}>
@@ -40,11 +49,16 @@ export function RunInspector({ model, ui, runId, summary }: Props) {
             </>
           )}
         </span>
+        {onClose && (
+          <button type="button" className="inspector-close" aria-label="Close inspector" onClick={onClose}>
+            ×
+          </button>
+        )}
       </motion.div>
 
       <motion.div className="ins-body" {...rise(reduced, 0.6, 10)}>
         <motion.div key={k} initial={reduced ? false : { opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.28, ease: EASE }}>
-          <StepView model={model} provenance="live" k={k} />
+          <StepView model={model} provenance="live" k={k} onForkFromHere={onForkFromHere} />
         </motion.div>
       </motion.div>
 

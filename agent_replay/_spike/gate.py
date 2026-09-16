@@ -12,9 +12,9 @@ import json
 import sys
 from collections import deque
 
-from agent import COUNTS, StoredResultTool, append_event, canonical
-from gate_compare import StepReport, compare, compare_halted
-from storage import AwsTraceStorage, LocalTraceStorage
+from .agent import COUNTS, StoredResultTool, append_event, canonical
+from .gate_compare import StepReport, compare, compare_halted
+from .storage import AwsTraceStorage, LocalTraceStorage
 from strands.hooks import AfterToolCallEvent, BeforeToolCallEvent, HookProvider, HookRegistry
 from strands.types.exceptions import EventLoopException
 
@@ -109,11 +109,18 @@ class GateToolTap(HookProvider):
     the attribution boundary); with strict=True it halts the run instead.
     """
 
-    def __init__(self, golden_events: list, candidate_trace: list, strict: bool = False, mutations: dict[str, dict] | None = None):
+    def __init__(self, golden_events: list, candidate_trace: list, strict: bool = False, mutations: dict[str, dict] | None = None, agent_name: str | None = None, step_counter: list[int] | None = None, pass_through: set[str] | None = None):
         self.candidate_trace = candidate_trace
         self.strict = strict
         self.mutations = mutations or {}
-        self.step = 0  # ordinal of the tool call currently in flight (1-indexed)
+        # A one-element list, not a plain int: Phase 3's nested capture attaches one GateToolTap per
+        # discovered agent (supervisor, each specialist), all writing into the SAME shared candidate_trace
+        # -- an independent `self.step = 0` per instance would hand out DUPLICATE step numbers to
+        # different agents' calls that happen to occur at the same ordinal within their own tap, which
+        # would corrupt the step table and MISSING_STEP's step numbering the moment more than one tap is
+        # active. Defaults to a private counter, so a lone top-level tap (every pre-Phase-3 caller) is
+        # unaffected -- byte-identical to plain `self.step = 0` before this parameter existed.
+        self._step_counter = step_counter if step_counter is not None else [0]
         self.injected = 0
         self.unrecorded = 0
         self.first_unrecorded_step: int | None = None
@@ -124,15 +131,46 @@ class GateToolTap(HookProvider):
                 continue
             key = (e["input"]["name"], canonical(e["input"].get("input", {})))
             self._queues.setdefault(key, deque()).append(e["output"])
+        # Defaults True: every existing caller never sets this, so behavior is byte-identical to before
+        # this flag existed. See _spike/agent.py's ToolTap.active for why (Phase 2's adapter.py
+        # ScopedInstrumentation, docs/DECISIONS.md) -- same reasoning, same shape.
+        self.active = True
+        # See _spike/agent.py's ToolTap.agent_name for why (Phase 3, nested capture) -- same shape: None
+        # preserves the pre-existing post-hoc stamping behavior exactly.
+        self.agent_name = agent_name
+        # Phase 3 decision 1 (docs/DECISIONS.md): tool names that must NOT be frozen -- a tool that is
+        # itself a live sub-agent (agents-as-tools) has to actually run for anything inside it to ever be
+        # observed; freezing it (this class's ENTIRE reason for existing, for every other tool) means the
+        # sub-agent's real function body never executes, unconditionally, regardless of match outcome --
+        # this was Phase 3's stop condition. Empty set (default) is byte-identical to before this
+        # parameter existed: no tool is ever exempted from freezing.
+        self.pass_through = pass_through or set()
 
     def register_hooks(self, registry: HookRegistry, **kwargs) -> None:
         registry.add_callback(BeforeToolCallEvent, self._before)
         registry.add_callback(AfterToolCallEvent, self._after)
 
+    @property
+    def step(self) -> int:
+        return self._step_counter[0]
+
     def _before(self, event: BeforeToolCallEvent) -> None:
-        self.step += 1
+        if not self.active:
+            return
+        self._step_counter[0] += 1
         tool_name = event.tool_use["name"]
         args = event.tool_use.get("input", {})
+
+        if tool_name in self.pass_through:
+            # Do NOT touch event.selected_tool: the real tool -- the live sub-agent -- runs, unmodified.
+            # Its OWN nested tool calls are injected from golden exactly as any other call, by whichever
+            # GateToolTap instance is attached to that nested agent (see agent_replay/adapter.py's
+            # ScopedInstrumentation and evaluate.py's pass_through wiring). Not counted as injected/
+            # unrecorded -- it is neither; gate_status="pass_through" is its own third category, read by
+            # evaluate.py to compute the weakened-attribution boundary (see docs/DECISIONS.md).
+            self._pending[event.tool_use["toolUseId"]] = {"step": self.step, "status": "pass_through", "mutated": False}
+            return
+
         key = (tool_name, canonical(args))
         queue = self._queues.get(key)
 
@@ -165,11 +203,15 @@ class GateToolTap(HookProvider):
         self._pending[event.tool_use["toolUseId"]] = {"step": self.step, "status": status, "mutated": mutated}
 
     def _after(self, event: AfterToolCallEvent) -> None:
+        if not self.active:
+            return
         info = self._pending.pop(event.tool_use["toolUseId"])
         append_event(self.candidate_trace, "tool", event.tool_use, event.result)
         self.candidate_trace[-1]["gate_step"] = info["step"]
         self.candidate_trace[-1]["gate_status"] = info["status"]
         self.candidate_trace[-1]["gate_mutated"] = info["mutated"]
+        if self.agent_name is not None:
+            self.candidate_trace[-1]["agent"] = self.agent_name
 
 
 def _token_totals(candidate_trace: list) -> tuple[int, int]:

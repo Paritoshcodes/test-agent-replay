@@ -38,11 +38,11 @@ TOKEN = "{repo}"
 
 
 def _repo_uri() -> str:
-    return paths.REPO_ROOT.resolve().as_uri()
+    return paths.project_root().as_uri()
 
 
 def _repo_path_forms() -> list[str]:
-    root = paths.REPO_ROOT.resolve()
+    root = paths.project_root()
     return [str(root), root.as_posix()]
 
 
@@ -62,7 +62,7 @@ def to_absolute(text):
     if not isinstance(text, str):
         return text
     text = text.replace(f"file://{TOKEN}", _repo_uri())
-    return text.replace(TOKEN, str(paths.REPO_ROOT.resolve()))
+    return text.replace(TOKEN, str(paths.project_root()))
 
 
 def _walk(obj, fn):
@@ -88,7 +88,7 @@ def portable_trace(trace: list) -> None:
     (redact first, then make paths portable; order does not matter for correctness, only for which pass
     recomputes the final hash). Recomputes output_sha256 for the same reason redact_trace does: the hash
     must describe what was actually written."""
-    from agent import sha256  # spike/agent.py, unchanged
+    from ._spike.agent import sha256
 
     for event in trace:
         event["input"] = portable_value(event["input"])

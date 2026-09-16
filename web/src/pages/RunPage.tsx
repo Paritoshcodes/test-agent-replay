@@ -26,5 +26,5 @@ export function RunPage({ runId, navigate }: { runId: string; navigate: (path: s
   // run_id itself encodes it (agent_replay/cli.py: `{scenario}--candidate--{run_uid}`), so derive it from
   // there rather than inventing a field on the response shape.
   const scenario = runId.split("--candidate--")[0] || runId;
-  return <RunView gateRun={state.run} runId={runId} scenario={scenario} navigate={navigate} />;
+  return <RunView key={runId} gateRun={state.run} runId={runId} scenario={scenario} navigate={navigate} />;
 }

@@ -8,13 +8,13 @@ import argparse
 import sys
 import time
 
-from agent import COUNTS, PROMPT, build_agent, real_execution_count, sha256
-from storage import get_storage
+from .agent import COUNTS, PROMPT, build_agent, real_execution_count, sha256
+from .storage import get_storage
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Full replay of a recorded toy-agent trace.")
-    parser.add_argument("--run-id", default="run-001", help="Trace identifier (local: traces/<run-id>.json; aws: DynamoDB partition key).")
+    parser.add_argument("--run-id", default="run-001", help="Trace identifier (local: agent-replay/traces/<run-id>.json; aws: DynamoDB partition key).")
     parser.add_argument("--storage", choices=["local", "aws"], default="local", help="Where to load the trace from.")
     args = parser.parse_args()
 
