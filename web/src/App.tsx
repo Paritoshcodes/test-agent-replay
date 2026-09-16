@@ -11,6 +11,7 @@ import { Timeline } from "./components/Timeline";
 import { useRoute } from "./router";
 import { CommitPage } from "./pages/CommitPage";
 import { RunPage } from "./pages/RunPage";
+import { DevFixturePage } from "./pages/DevFixturePage";
 
 declare global {
   interface Window {
@@ -27,6 +28,8 @@ export default function App() {
         <CommitPage sha={route.sha} navigate={navigate} />
       ) : route.name === "run" ? (
         <RunPage runId={route.runId} navigate={navigate} />
+      ) : route.name === "dev" ? (
+        <DevFixturePage name={route.fixture} navigate={navigate} />
       ) : (
         <FixtureDemo />
       )}

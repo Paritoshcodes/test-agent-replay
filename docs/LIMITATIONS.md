@@ -156,3 +156,88 @@ ways a model can phrase checking it; 5 (or any fixed N) reference runs narrow th
 it. A genuinely well-behaved contract needs either a pinned input (removing the ambiguity, as in
 `vulnerable-dependency`) or a human-authored `permits`/`forbids` rule loose enough to cover the real range
 of acceptable behavior -- `--runs N` alone is not a substitute for either.
+
+## Specialists are opaque (Phase 2, docs/DECISIONS.md)
+
+Phase 2 instruments the supervisor agent only. A call like `billing_specialist(query="...")` is captured
+as a single opaque tool call -- everything the specialist does inside that call (`lookup_account`,
+`check_balance`, and for billing/escalation, `retrieve`) is invisible to agent-replay entirely; it is not
+even in the candidate trace to be matched or missed. This is a real, current boundary, not a rounding
+error: the specialist's own tool calls are exactly the STRUCTURED, stable, consequential ones (see the
+free-text section below) -- the ones a contract would most want to pin down -- and none of them are
+visible yet. Seeing inside a specialist means instrumenting an agent CREATED INSIDE another agent's own
+tool call, mid-run, not at the top level agent-replay already controls -- this needs the SAME scoped
+attach/detach shape agent_replay/adapter.py's ScopedInstrumentation already has (built that way now for
+exactly this reason), applied to a hook fired when the supervisor's tool call boundary is crossed, plus the
+`agent` field every event already carries (Phase 2.3) actually varying by specialist name instead of always
+reading "supervisor". Both are groundwork already laid, not yet wired up.
+
+## Free-text tool arguments defeat exact-match keying (Phase 2.4, docs/DECISIONS.md)
+
+Every contract key in this project is (tool_name, exact_canonical_args) -- see agent_replay/callsig.py's
+call_key. That holds up when a tool's arguments are structured (an enum, a normalized account number, a
+postcode) but not when an argument is free natural-language text the model composes fresh, in its own
+words, on every call -- which is exactly what the supervisor passes to `billing_specialist`/
+`scheduling_specialist` (a `query: str` parameter, the customer's request restated in the model's own
+words) in the sample multi-agent repo (Phase 0, docs/DECISIONS.md).
+
+Measured directly from the Phase 0 runs (already-collected data, no new live calls): across 5 scheduling
+runs, `scheduling_specialist` was called 6 times total (one run called it twice) with exactly 2 DISTINCT
+query strings -- "Book a meter reading for ACC-100456 in LS6 2AB" (5 of 6 calls) and a supervisor-reworded
+"Schedule a meter reading for ACC-100456 in LS6 2AB" (1 of 6, from the run that called it twice) -- despite
+every run being fed the IDENTICAL literal customer query. The supervisor itself introduces wording
+variance even with zero variation in its input. Across 2 billing runs, `billing_specialist` was called
+twice with 1 distinct query string (no variance observed, but N=2 is a small sample; the scheduling data,
+with a real reworded duplicate inside a single run, is the more informative signal). `classify_intent` is
+NOT free text in practice here -- when the supervisor calls it, it passes the original customer wording
+verbatim, never a paraphrase (1 distinct value across all classify_intent calls in both scenarios).
+
+Structured or free text: `check_balance(account_number=...)` and `check_availability(appointment_type=...,
+postcode=...)` are BOTH structured -- an enum/normalized string the specialist extracts FROM the free text,
+not the free text itself. These are invisible to agent-replay in Phase 2 (see "Specialists are opaque"
+above), which means the ONLY calls agent-replay can currently see for billing/scheduling
+(`billing_specialist`/`scheduling_specialist` themselves) are exactly the free-text ones, and the
+structured, stable ones one level down are exactly the ones it cannot see yet.
+
+Is the contract still useful today, with this exact combination of gaps? Yes, but narrower than it looks:
+`classify_intent` keys reliably (1 distinct value observed) and belongs in `permits` at whatever N-of-M
+rate it is actually called (Phase 0: 3 of 5 scheduling runs) -- a real, meaningful signal about the
+supervisor's own discretion. `billing_specialist`/`scheduling_specialist` calls, keyed on their free-text
+query argument, will fragment into mostly-unique `permits` entries (each run's literal argument value is
+close to its own contract key) rather than ever accumulating confidence as a single stable
+`requires`/`permits` entry -- exactly the failure mode Phase 2.4's seam (agent_replay/callsig.py's
+`call_key(tool, args, *, strategy=...)`) exists to eventually fix, e.g. a "key on tool name only, ignore
+free-text args" strategy for specifically these two tools. Not fixed here -- the seam exists, nothing is
+plugged into it yet, per instruction.
+
+## The confidence bar on `requires` trades detection power for gate trustworthiness
+
+Phase 4 (docs/DECISIONS.md): a call seen in every run of N is no longer promoted to `requires` just because
+N happened to be unanimous, once its OWN TOOL shows real variance elsewhere in this SAME recording (proof
+that specific tool has genuine discretion) -- promotion then needs N large enough that an accidental
+unanimous run is unlikely at THAT TOOL's own observed rate in this recording (Phase 0 fix: originally one
+project-wide rate borrowed from schedule-meter-reading's classify_intent regardless of which tool was
+being judged -- corrected because a variable call elsewhere in a recording is not evidence about an
+unrelated, always-called tool). A tool with NO variance anywhere in this recording still promotes
+immediately regardless of N (vulnerable-dependency's own real, historical shape is unaffected either way).
+
+The trade-off, stated plainly and not buried: a higher bar means a genuine regression on a call with real
+natural variance sits in `permits` and goes UNFLAGGED if it stops happening, because `permits` allows both
+presence and absence as PASS. This is a real cost, not a hypothetical one -- it is the price of not having
+a gate that fails on an unchanged configuration, which is the failure mode this whole project exists to
+avoid. A call that never gets to prove itself unanimous enough is a call this contract can no longer
+protect at all; it can only observe it.
+
+## A contract can only be as strict as the agent is consistent
+
+`schedule-meter-reading`'s fresh 15-run recording (Phase 0, docs/DECISIONS.md) found `check_availability`
+called in 14 of 15 runs against the IDENTICAL booking query -- the agent skipped checking the calendar
+before scheduling a meter reading once, for no input reason. That is not comparator noise and it is not
+something this task engineered around: it is a real inconsistency in the sample agent's own behavior, in a
+domain (scheduling) where skipping the availability check is a real bug, not a stylistic variation. Per-key
+or per-tool, no derivation rule can promote a call to `requires` that the agent itself does not reliably
+make -- the contract is describing the agent honestly, not failing to be strict enough. `permits` is the
+correct, if unsatisfying, home for `check_availability` here: present or absent, both PASS, because absent
+really does happen. Making this gate stricter would mean either lying about what the agent does (promoting
+a call that isn't actually guaranteed) or the agent needs to change, not the contract. This is the tool
+surfacing information about the agent -- which is the point of building it.

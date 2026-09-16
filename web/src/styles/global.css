@@ -166,7 +166,13 @@ code {
 .stage {
   position: fixed;
   inset: 0;
-  overflow: hidden;
+  /* clip, not hidden: a translateX(100%)-closed drawer (.inspector[data-narrow]) sits well outside this
+     box on purpose, and `overflow: hidden` still lets a browser's focus/click "scroll into view" behavior
+     move .stage's OWN scroll position to reveal it -- a real bug found by testing the close button, not
+     hypothetical (docs/DECISIONS.md, Phase 1). `clip` disallows scrolling this box at all, programmatic or
+     not, which is what "this region never scrolls" was already supposed to mean everywhere else in this
+     layout. */
+  overflow: clip;
   background:
     radial-gradient(1100px 520px at 28% -8%, rgba(255, 255, 255, 0.045), transparent 70%),
     var(--bg);
@@ -454,6 +460,7 @@ kbd {
 /* ------------------------------------------------------------------ hero */
 
 .hero {
+  container-type: inline-size;
   position: absolute;
   top: var(--header-h, 56px);
   left: 0;
@@ -469,7 +476,26 @@ kbd {
 }
 .hero-left {
   flex: 1;
-  min-width: 0;
+  /* Wide enough for the longest real title ("In step with golden") at the smallest size in its clamp()
+   * without needing RollText's ellipsis at all -- measured, not guessed. */
+  min-width: 300px;
+}
+/* Phase 1 fix (docs/DECISIONS.md): the title/sub used to get crushed to near-zero width (rendering as
+   "Ready t...") whenever the Inspector's reserved width left .hero tight -- five metric columns had
+   `flex: none` and would never yield space back to hero-left, which had `min-width: 0`. Fixed by giving
+   hero-left a real floor and degrading the metrics (least first) via a container query on .hero's own
+   rendered width, which already reflects --side-w -- an adaptation, not a text truncation. */
+@container (max-width: 760px) {
+  .metric:nth-child(5) { display: none; }
+}
+@container (max-width: 620px) {
+  .metric:nth-child(4) { display: none; }
+}
+@container (max-width: 500px) {
+  .metric:nth-child(3) { display: none; }
+}
+@container (max-width: 420px) {
+  .metrics { display: none; }
 }
 .hero-eyebrow {
   display: flex;
@@ -1505,6 +1531,7 @@ kbd {
   flex: 1;
   min-width: 0;
   position: relative;
+  overflow: clip;
 }
 .triage-empty {
   height: 100%;
@@ -1702,4 +1729,642 @@ kbd {
   *::after {
     transition-duration: 0.01ms !important;
   }
+}
+
+/* ==================================================================== Phase 1: swimlane timeline
+   (RunView's real-data path only -- the fixture demo at "/" keeps the original two-lane engine/CSS
+   above, completely unchanged, see docs/DECISIONS.md). Reuses --side-w (written by RunView, same var
+   Hero/RunHeader/the old .timeline already read) as the single source of truth for how much width the
+   right Inspector currently reserves -- 0 the instant it's collapsed or in narrow-drawer mode, so the
+   lane region ALWAYS owns the rest, never occluded. */
+
+.sw-region {
+  position: absolute;
+  left: 0;
+  right: var(--side-w, 0px);
+  top: calc(var(--header-h, 56px) + var(--hero-h, 150px));
+  bottom: var(--timeline-h, 150px);
+  overflow: hidden;
+  transition: right 0.36s var(--ease);
+}
+
+.sw-stage {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+}
+.sw-stage[data-panning="true"] {
+  cursor: grabbing;
+}
+.sw-canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+.sw-ruler-hit {
+  position: absolute;
+  top: 0;
+  height: 28px;
+  cursor: ew-resize;
+  z-index: 3;
+}
+.sw-ruler-hit:focus-visible {
+  outline-offset: -2px;
+}
+
+.sw-gutter {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, rgba(10, 10, 10, 0.92) 82%, rgba(10, 10, 10, 0));
+  pointer-events: none;
+  z-index: 4;
+}
+.sw-lanehead {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  will-change: transform, opacity;
+  pointer-events: auto;
+}
+/* BUG 1 fix (docs/DECISIONS.md): the whole header is now ONE <button>, not a small chevron inside a div
+   with no handler of its own -- clicking anywhere on the row (name, summary, padding) toggles the lane,
+   and it is keyboard-activatable (Enter/Space) for free because it is a real <button>, not a div. */
+.sw-lane-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  width: 100%;
+  min-height: 30px;
+  padding: 4px 10px 4px 0;
+  border-radius: 6px;
+  text-align: left;
+  transition: background-color 0.15s var(--ease);
+}
+.sw-lane-row:hover {
+  background: rgba(255, 255, 255, 0.045);
+}
+.sw-lane-chevron {
+  flex: none;
+  margin-top: 4px;
+  color: var(--fg-4);
+  transition: color 0.15s var(--ease), transform 0.2s var(--ease);
+}
+.sw-lane-row:hover .sw-lane-chevron {
+  color: var(--fg-2);
+}
+.sw-lane-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.sw-lanehead[data-depth="0"] .sw-lane-name {
+  color: var(--fg);
+  font-weight: 600;
+}
+/* VISUAL 3 fix: wraps instead of ellipsizing -- the gutter is wider now (SwimlaneEngine.resize) AND a
+   name that still doesn't fit on one line gets a second line rather than being cut. */
+.sw-lane-name {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--fg-2);
+  line-height: 1.3;
+  overflow-wrap: break-word;
+}
+/* VISUAL 2 fix: replaces a badge on every permitted node with one line that reads at a glance, and still
+   at 50% page scale (~0.68rem effective * a 0.5 zoom is still legible mono type). */
+.sw-lane-summary {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  color: var(--fg-4);
+  white-space: nowrap;
+}
+/* Phase 2.2 (docs/DECISIONS.md): a fork lane's own header -- blue (this vocabulary's existing "live"
+   color, palette.ts) instead of a new hue, a dashed rather than solid row background so it visually
+   matches the dashed lane track/band swimlaneRender.ts draws for it, and a small uppercase tag rather than
+   folding "fork" into the name text itself. */
+.sw-lanehead[data-fork] .sw-lane-row {
+  background: rgba(71, 168, 255, 0.05);
+  border: 1px dashed rgba(71, 168, 255, 0.35);
+}
+.sw-lanehead[data-fork] .sw-lane-name {
+  color: var(--blue);
+}
+.sw-lane-fork-tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 4px;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--blue);
+  border: 1px solid var(--blue);
+  border-radius: 3px;
+  vertical-align: middle;
+}
+
+.sw-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+}
+.sw-node {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  will-change: transform, opacity;
+}
+.sw-node-hit {
+  position: absolute;
+  left: -12px;
+  top: -12px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  pointer-events: auto;
+  cursor: pointer;
+}
+.sw-node-hit:focus-visible {
+  outline-offset: 0;
+}
+.sw-lbl {
+  position: absolute;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform: translateX(-50%);
+  line-height: 1.3;
+  pointer-events: none;
+}
+.sw-lbl[data-pos="up"] {
+  bottom: 12px;
+}
+.sw-lbl[data-pos="down"] {
+  top: 12px;
+}
+/* Phase 1 (docs/DECISIONS.md): a long free-text argument or tool name WRAPS within a bounded column
+   instead of either running on forever (colliding with neighbors) or being clipped/ellipsized -- nothing
+   here ever cuts text; wrapping is the "layout adapts" the task asked for. .sw-stage's overflow:hidden is
+   a last-resort safety net for the rare label that still doesn't fit near a plot edge, not the mechanism
+   this relies on. */
+.sw-lbl-tool {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--fg-3);
+  max-width: 200px;
+  white-space: normal;
+  overflow-wrap: break-word;
+  text-align: center;
+}
+.sw-node[data-hover="true"] .sw-lbl-tool,
+.sw-node[data-flag="true"] .sw-lbl-tool {
+  color: var(--fg);
+}
+.sw-lbl-arg {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  color: var(--fg-4);
+  max-width: 220px;
+  white-space: normal;
+  overflow-wrap: break-word;
+  text-align: center;
+}
+.sw-lbl-permit {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--fg-4);
+  border: 1px dashed var(--line-2);
+  border-radius: 3px;
+  padding: 0 4px;
+  margin-top: 1px;
+}
+/* Label level-of-detail by zoom AND lane density (Phase 1 revision, docs/DECISIONS.md -- "BUG 2"):
+   data-labelmode/data-current/data-badge are written imperatively, every frame, by
+   SwimlaneEngine.writeAnchors (a zoom/pan animation changes them continuously, which a React re-render
+   gated on discrete UI state would miss). "hidden" removes the label entirely rather than truncating it;
+   the value stays reachable via hover or the Inspector. The engine already forces the three label
+   EXCEPTIONS (current step, divergence, hovered node) to data-labelmode="full" directly, so no separate
+   CSS override is needed here for those -- one source of truth for the policy, not two. */
+.sw-node[data-labelmode="hidden"] .sw-lbl {
+  display: none;
+}
+.sw-node[data-labelmode="tool"] .sw-lbl-arg {
+  display: none;
+}
+/* VISUAL 2 fix: the requires/permits pill on a LABEL is its own, stricter gate -- "only at high zoom, or
+   only on the hovered/current node" -- separate from whether the tool/arg text itself is showing. */
+.sw-node[data-badge="false"] .sw-lbl-permit {
+  display: none;
+}
+
+/* ------------------------------------------------------------------ swimlane transport + minimap */
+
+.sw-timeline {
+  position: absolute;
+  left: 0;
+  right: var(--side-w, 0px);
+  bottom: 0;
+  height: var(--timeline-h, 150px);
+  background: rgba(10, 10, 10, 0.85);
+  backdrop-filter: blur(12px) saturate(1.3);
+  -webkit-backdrop-filter: blur(12px) saturate(1.3);
+  border-top: 1px solid var(--line);
+  z-index: 15;
+  transition: right 0.36s var(--ease);
+  display: flex;
+  flex-direction: column;
+}
+.sw-minimap {
+  position: relative;
+  height: 40px;
+  /* VISUAL 3 fix: tightened right up against .sw-timeline's own top border, which already sits directly
+     below the ruler it's an overview OF -- once VISUAL 1 stops the lanes from floating in dead space
+     above it, this reads as one continuous instrument instead of two unrelated pieces. */
+  margin: 6px 16px 0;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--bg-1);
+  cursor: pointer;
+  overflow: hidden;
+  flex: none;
+}
+.sw-minimap-canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+.sw-controls {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 20px 12px 16px;
+  min-height: 0;
+}
+.zoom-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+}
+.zbtn {
+  width: auto;
+  min-width: 30px;
+  padding: 0 6px;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+}
+.zbtn[data-active="true"] {
+  color: var(--bg);
+  background: var(--fg);
+}
+
+/* ------------------------------------------------------------------ collapsible Inspector */
+
+.inspector {
+  transition: width 0.32s var(--ease), transform 0.32s var(--ease), opacity 0.24s var(--ease);
+}
+.inspector[data-open="false"] {
+  transform: translateX(16px);
+  opacity: 0;
+  pointer-events: none;
+}
+/* VISUAL 3 fix (docs/DECISIONS.md): the collapsed tab used to be a thin, low-contrast sliver that did not
+   read as clickable. Now: a solid (not translucent) fill, a real shadow lifting it off the canvas like a
+   physical folder tab, a chevron icon pointing the direction it reopens, and a bigger hit target. */
+.inspector-tab {
+  position: absolute;
+  right: 0;
+  top: calc(var(--header-h, 56px) + 24px);
+  z-index: 31;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 9px;
+  border-radius: 10px 0 0 10px;
+  background: var(--bg-2);
+  border: 1px solid var(--line-2);
+  border-right: none;
+  box-shadow: -6px 4px 18px -6px rgba(0, 0, 0, 0.55);
+  color: var(--fg-2);
+  transition: color 0.15s var(--ease), background-color 0.15s var(--ease), transform 0.15s var(--ease);
+}
+.inspector-tab:hover {
+  color: var(--fg);
+  background: var(--bg-3);
+  transform: translateX(-2px);
+}
+.inspector-tab span {
+  writing-mode: vertical-rl;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.inspector-tab svg {
+  flex: none;
+}
+.inspector-close {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  color: var(--fg-3);
+  margin-left: auto;
+}
+.inspector-close:hover {
+  color: var(--fg);
+  background: var(--bg-3);
+}
+
+/* Narrow viewports: the Inspector becomes an overlay drawer instead of reserving width -- .sw-region and
+   .sw-timeline never see a nonzero --side-w here (RunView keeps it at 0 in this mode), and the drawer
+   paints over the timeline instead, with a backdrop to make that state legible. */
+@media (max-width: 980px) {
+  .inspector[data-narrow="true"] {
+    right: 0;
+    left: auto;
+    /* % of .stage's OWN width, not the viewport -- .stage can be narrower than the viewport when embedded
+       in CommitPage's triage layout (.stage-embedded), and `vw` here previously ignored that entirely,
+       letting this drawer render wider than its embedded container and turn .stage into an accidental
+       horizontal scroll container (a focus/click on anything near its edge would then scroll the whole
+       view sideways -- a real bug this fixes, not a hypothetical one). */
+    width: min(400px, 92%);
+    box-shadow: -24px 0 60px -20px rgba(0, 0, 0, 0.7);
+    z-index: 40;
+  }
+  .inspector[data-narrow="true"][data-open="false"] {
+    transform: translateX(100%);
+  }
+  .inspector-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 39;
+  }
+}
+
+/* ------------------------------------------------------------------ collapsible triage rail */
+
+.triage-rail {
+  transition: width 0.32s var(--ease), min-width 0.32s var(--ease), padding 0.32s var(--ease), opacity 0.24s var(--ease);
+  overflow: hidden;
+}
+.triage-rail[data-open="false"] {
+  width: 0 !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  opacity: 0;
+}
+.triage-rail-tab {
+  position: absolute;
+  left: 0;
+  top: 24px;
+  z-index: 31;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 9px;
+  border-radius: 0 10px 10px 0;
+  background: var(--bg-2);
+  border: 1px solid var(--line-2);
+  border-left: none;
+  box-shadow: 6px 4px 18px -6px rgba(0, 0, 0, 0.55);
+  color: var(--fg-2);
+  transition: color 0.15s var(--ease), background-color 0.15s var(--ease), transform 0.15s var(--ease);
+}
+.triage-rail-tab:hover {
+  color: var(--fg);
+  background: var(--bg-3);
+  transform: translateX(2px);
+}
+.triage-rail-tab span {
+  writing-mode: vertical-rl;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.triage-rail-tab svg {
+  flex: none;
+}
+.triage-rail-head-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.triage-rail-collapse {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  color: var(--fg-3);
+  flex: none;
+}
+.triage-rail-collapse:hover {
+  color: var(--fg);
+  background: var(--bg-3);
+}
+
+/* ------------------------------------------------------------------ fork panel (Phase 2.2/2.3, docs/DECISIONS.md) */
+
+.fork-from-here-btn {
+  margin-top: 10px;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 7px;
+  border: 1px solid var(--blue);
+  background: rgba(71, 168, 255, 0.08);
+  color: var(--blue);
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  font-weight: 600;
+  transition: background-color 0.15s var(--ease);
+}
+.fork-from-here-btn:hover {
+  background: rgba(71, 168, 255, 0.16);
+}
+
+.fork-panel {
+  position: absolute;
+  left: 20px;
+  bottom: calc(var(--timeline-h, 150px) + 20px);
+  width: min(360px, calc(100% - 40px));
+  max-height: 60vh;
+  overflow-y: auto;
+  z-index: 42;
+  padding: 14px 16px 16px;
+  border-radius: 12px;
+  background: rgba(10, 10, 10, 0.96);
+  backdrop-filter: blur(16px) saturate(1.2);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  border: 1px solid var(--line-2);
+  box-shadow: 0 12px 40px -12px rgba(0, 0, 0, 0.7);
+}
+.fork-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  color: var(--fg);
+  font-weight: 600;
+}
+.fork-panel-close {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  flex: none;
+  border-radius: 6px;
+  color: var(--fg-3);
+  font-size: 1.1rem;
+  line-height: 1;
+}
+.fork-panel-close:hover {
+  color: var(--fg);
+  background: var(--bg-3);
+}
+.fork-panel-hint {
+  margin: 0 0 10px;
+  font-size: 0.78rem;
+  color: var(--fg-3);
+  line-height: 1.5;
+}
+.fork-panel-error {
+  margin: 0 0 10px;
+  font-size: 0.78rem;
+  color: var(--red);
+}
+.fork-panel-note {
+  margin: 8px 0 0;
+  font-size: 0.72rem;
+  color: var(--fg-4);
+}
+.fork-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+.fork-field-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.fork-field-name {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  color: var(--fg-4);
+}
+.fork-field-input {
+  height: 30px;
+  padding: 0 9px;
+  border-radius: 6px;
+  border: 1px solid var(--line-2);
+  background: var(--bg-1);
+  color: var(--fg);
+  font-family: var(--mono);
+  font-size: 0.78rem;
+}
+.fork-field-input:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 0;
+}
+.fork-field-input[data-edited] {
+  border-color: var(--blue);
+  background: rgba(71, 168, 255, 0.06);
+}
+.fork-run-btn,
+.fork-save-btn {
+  width: 100%;
+  height: 34px;
+  margin-top: 12px;
+  border-radius: 8px;
+  background: var(--blue);
+  color: #04101d;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.fork-run-btn:disabled {
+  opacity: 0.4;
+}
+.fork-save-btn {
+  background: transparent;
+  color: var(--fg-2);
+  border: 1px solid var(--line-2);
+}
+.fork-save-btn:hover {
+  border-color: var(--fg-3);
+  color: var(--fg);
+}
+.fork-panel-fail {
+  padding: 10px 11px;
+  margin-bottom: 8px;
+  border-radius: 8px;
+  background: rgba(255, 97, 102, 0.08);
+  border: 1px solid rgba(255, 97, 102, 0.35);
+}
+.fork-panel-fail[data-transient] {
+  background: rgba(245, 165, 36, 0.08);
+  border-color: rgba(245, 165, 36, 0.4);
+}
+.fork-panel-fail-tag {
+  display: inline-block;
+  margin-bottom: 4px;
+  padding: 0 5px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--red);
+  border: 1px solid var(--red);
+  border-radius: 3px;
+}
+.fork-panel-fail[data-transient] .fork-panel-fail-tag {
+  color: var(--amber);
+  border-color: var(--amber);
+}
+.fork-panel-fail p {
+  margin: 0;
+  font-size: 0.76rem;
+  color: var(--fg-2);
+  line-height: 1.5;
+}
+.fork-answer-diff {
+  margin-bottom: 4px;
+}
+.fork-save-form {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line-2);
+}
+.fork-save-label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+  font-size: 0.72rem;
+  color: var(--fg-4);
 }

@@ -15,6 +15,7 @@ import json
 import sys
 from pathlib import Path
 
+from . import adapter
 from . import ci as ci_mod
 from . import contract as contract_mod
 from . import dashboard as dashboard_mod
@@ -25,8 +26,6 @@ from . import report as report_mod
 from .redact import redact_text, redact_trace
 from .scenarios import Scenario, load_scenarios_file, render_scenarios_yaml
 
-paths.ensure_spike_importable()
-
 _NON_AGENT_MODULES = {"gate", "gate_compare", "storage", "record", "replay", "record_audit", "replay_audit", "__init__"}
 
 
@@ -35,15 +34,18 @@ def _err(*a: object) -> None:
 
 
 def _detect_agents() -> list[str]:
-    """Every spike/*.py module exposing the build_agent(trace, ...) + MODEL_ID contract that
-    spike/agent.py and spike/audit_agent.py both already implement -- generic, not name-matched."""
+    """Every agent_replay/_spike/*.py module exposing the build_agent(trace, ...) + MODEL_ID contract that
+    _spike/agent.py and _spike/audit_agent.py both already implement -- generic, not name-matched. Only
+    ever finds agent-replay's OWN bundled examples (see paths.import_agent_module's docstring on bare-name
+    disambiguation) -- there is no way to generically discover an adopter's own module:callable agents by
+    scanning a directory, since they live in an arbitrary location in the adopter's own project."""
     found = []
-    for f in sorted(paths.SPIKE_DIR.glob("*.py")):
+    for f in sorted((paths.PACKAGE_DIR / "_spike").glob("*.py")):
         name = f.stem
         if name in _NON_AGENT_MODULES:
             continue
         try:
-            mod = importlib.import_module(name)
+            mod = importlib.import_module(f"agent_replay._spike.{name}")
         except Exception:
             continue
         if hasattr(mod, "build_agent") and hasattr(mod, "MODEL_ID"):
@@ -144,14 +146,18 @@ def _persist_for_dashboard(scenario: Scenario, c, cpath: Path, r: evaluate_mod.C
             golden_prompt=portable.to_absolute(ref["prompt"]), golden_final_answer=portable.to_absolute(ref["final_answer"]),
             golden_final_answer_sha256=ref["final_answer_sha256"], model_id=model_id,
         )
-        from storage import AwsTraceStorage
+        from ._spike.storage import AwsTraceStorage
 
         AwsTraceStorage().save_test_run(
             run_id,
             {"agent_module": scenario.agent, "model_id": model_id, "scenario": scenario.name, "contract_hash": contract_hash, "verdict": r.verdict, **ci},
             gate_run,
         )
-        print(f"  dashboard: saved {run_id}")
+        # stderr, NOT stdout: under --json, stdout carries ONLY the machine-readable result document.
+        # This line used to be a bare print(), which prepended "  dashboard: saved <id>" to the JSON and
+        # broke every CI consumer with "JSONDecodeError: Expecting value: line 1 column 3". The failure
+        # branch below already used _err() -- this is the same channel, applied consistently.
+        _err(f"  dashboard: saved {run_id}")
     except Exception as e:
         _err(f"warning: could not persist dashboard data for {scenario.name!r} ({type(e).__name__}: {e}) -- gate result above is unaffected")
 
@@ -171,6 +177,13 @@ def _print_human(r: evaluate_mod.ContractResult, file) -> None:
     else:
         print("no divergence: every call is required or permitted, in order, nothing forbidden fired", file=file)
     print(f"attribution boundary: {'none' if r.attribution_boundary is None else f'step {r.attribution_boundary}'}", file=file)
+    if r.pass_through_boundary is not None:
+        print(
+            f"pass-through boundary: step {r.pass_through_boundary} -- a live sub-agent ran from here on; "
+            "steps at/after this are WEAKLY_ATTRIBUTABLE (leaf tool data was frozen, but the sub-agent's "
+            "own live model was not)",
+            file=file,
+        )
     print(f"model calls: {r.n_model}   injected: {r.injected}   unrecorded: {r.unrecorded}   real tool executions: {r.tool_bodies}", file=file)
     print(f"{'step':>4}  {'cause':<16}  {'attribution':<12}  {'note':<9}  tool", file=file)
     for s in r.steps:
@@ -235,6 +248,7 @@ def cmd_init(args: argparse.Namespace) -> int:
 # ---------------------------------------------------------------------------------------------- record
 
 def cmd_record(args: argparse.Namespace) -> int:
+    _err(f"project root: {paths.project_root()}")
     scenario = _load_scenario(args.scenario)
     if scenario is None:
         _err(f"unknown scenario {args.scenario!r}; run `agent-replay init` first")
@@ -242,9 +256,11 @@ def cmd_record(args: argparse.Namespace) -> int:
     runs = args.runs or scenario.runs
 
     _, redact_patterns = load_scenarios_file(paths.scenarios_path())
-    agent_mod = importlib.import_module(scenario.agent)
-    from agent import sha256  # spike/agent.py, unchanged
-    from storage import get_storage
+    from ._spike.agent import ToolTap, sha256
+    from ._spike.storage import get_storage
+
+    is_adapter = adapter.is_ref(scenario.agent)
+    agent_mod = None if is_adapter else paths.import_agent_module(scenario.agent)
 
     storage = get_storage(args.storage)
     ci = ci_mod.ci_metadata()
@@ -252,21 +268,47 @@ def cmd_record(args: argparse.Namespace) -> int:
     # Phase 1: make every live run first, entirely in memory. Nothing is persisted yet, because
     # contract_hash (below) needs the DERIVED contract, and the contract needs every run's events --
     # storage.save() for run i cannot know the hash of a contract that does not exist until run N is done.
-    runs_data: list[tuple[str, list[dict], str]] = []  # (run_id, trace, answer)
+    # model_id/system_prompt are recorded per-run rather than read once: the bare-module form's are fixed
+    # module constants, but the adapter form's come off whatever agent the adopter's own factory just
+    # built, which this project does not control the shape of.
+    runs_data: list[tuple[str, list[dict], str, str, str]] = []  # (run_id, trace, answer, model_id, system_prompt)
     for i in range(1, runs + 1):
         run_id = paths.reference_run_id(scenario.name, i)
         trace: list = []
-        agent, _model, _tap = agent_mod.build_agent(trace)
         # scenario.input is stored PORTABLE (see agent_replay/portable.py); expand it to a real,
         # fetchable path on THIS machine for the actual run, then collapse the resulting trace back to
         # portable form before anything is persisted or derived from.
-        answer = str(agent(portable.to_absolute(scenario.input)))
+        real_input = portable.to_absolute(scenario.input)
+        if is_adapter:
+            agent = adapter.build_from_ref(scenario.agent)
+            if i == 1:  # once per invocation is enough -- the same agent's tool registry doesn't change run to run
+                adapter.warn_uninstrumented_nested(agent, set(scenario.pass_through), scenario_name=scenario.name)
+            inst = adapter.ScopedInstrumentation(
+                agent=agent, trace=trace, tap=ToolTap(trace, replay=False),
+                tap_factory=lambda name, _trace=trace: ToolTap(_trace, replay=False, agent_name=name),
+            )
+            inst.attach()
+            try:
+                answer = str(agent(real_input))
+            finally:
+                inst.detach()
+            for e in trace:
+                e.setdefault("agent", "supervisor")
+            run_model_id = adapter.model_id_of(agent)
+            run_system_prompt = agent.system_prompt
+        else:
+            agent, _model, _tap = agent_mod.build_agent(trace)
+            answer = str(agent(real_input))
+            for e in trace:
+                e.setdefault("agent", scenario.agent)
+            run_model_id = agent_mod.MODEL_ID
+            run_system_prompt = agent_mod.SYSTEM_PROMPT
         redact_trace(trace, redact_patterns)
         portable.portable_trace(trace)
         answer = redact_text(answer, redact_patterns)
         answer = portable.to_portable(answer)
         print(f"[{i}/{runs}] {run_id}: {len(trace)} events recorded")
-        runs_data.append((run_id, trace, answer))
+        runs_data.append((run_id, trace, answer, run_model_id, run_system_prompt))
 
     # Phase 2: derive the contract (preserving any hand-authored forbids already on disk) and hash it --
     # this IS the contract every one of the N runs below will be tagged with.
@@ -278,7 +320,7 @@ def cmd_record(args: argparse.Namespace) -> int:
         except Exception as e:
             _err(f"warning: could not read existing contract at {out} to preserve its forbids rules ({e}); starting with none")
 
-    recorded_events = [trace for _run_id, trace, _answer in runs_data]
+    recorded_events = [trace for _run_id, trace, _answer, _model_id, _sp in runs_data]
     c = contract_mod.derive(scenario.name, recorded_events, existing_forbids=existing_forbids)
     for w in contract_mod.forbids_warnings(c.forbids, recorded_events):
         print(f"warning: {w}")
@@ -287,10 +329,10 @@ def cmd_record(args: argparse.Namespace) -> int:
 
     # Phase 3: now persist every run, tagged with the contract it produced and whatever CI told us about
     # this invocation (agent_replay/ci.py -- None for every field when run locally).
-    for run_id, trace, answer in runs_data:
+    for run_id, trace, answer, run_model_id, run_system_prompt in runs_data:
         meta = {
             "prompt": scenario.input, "final_answer": answer, "final_answer_sha256": sha256(answer),
-            "agent_module": scenario.agent, "model_id": agent_mod.MODEL_ID, "system_prompt": agent_mod.SYSTEM_PROMPT,
+            "agent_module": scenario.agent, "model_id": run_model_id, "system_prompt": run_system_prompt,
             "run_kind": "golden", "scenario": scenario.name, "contract_hash": contract_hash, **ci,
         }
         stats = storage.save(run_id, meta, trace)
@@ -306,6 +348,7 @@ def cmd_record(args: argparse.Namespace) -> int:
 # ---------------------------------------------------------------------------------------------- test
 
 def cmd_test(args: argparse.Namespace) -> int:
+    _err(f"project root: {paths.project_root()}")
     all_scenarios, _ = load_scenarios_file(paths.scenarios_path())
     if args.scenario:
         scenario = _load_scenario(args.scenario)
@@ -319,7 +362,7 @@ def cmd_test(args: argparse.Namespace) -> int:
             _err("no scenarios configured; run `agent-replay init` first")
             return 1
 
-    from storage import get_storage
+    from ._spike.storage import get_storage
     storage = get_storage(args.storage)
 
     out = sys.stderr if args.json else sys.stdout
@@ -346,7 +389,7 @@ def cmd_test(args: argparse.Namespace) -> int:
         # result (the same class of bug ReferenceLoadError was fixed for, above). _run_scenario also
         # retries once if the failure looks like a transient Bedrock hiccup rather than a real
         # behavioral difference, so a passing rerun never shows up as an error at all.
-        r, msg, transient = _run_scenario(scenario, c, reference, model_id=args.model)
+        r, msg, transient = _run_scenario(scenario, c, reference, model_id=args.model, pass_through=scenario.pass_through)
         if r is None:
             _print_error(scenario.name, msg, transient, out)
             errors.append((scenario.name, msg, transient))
@@ -386,9 +429,9 @@ def cmd_replay(args: argparse.Namespace) -> int:
         return 1
     run_id = args.run_id or paths.reference_run_id(scenario.name, 1)
 
-    agent_mod = importlib.import_module(scenario.agent)
-    from agent import COUNTS, sha256
-    from storage import get_storage
+    agent_mod = paths.import_agent_module(scenario.agent)
+    from ._spike.agent import COUNTS, sha256
+    from ._spike.storage import get_storage
 
     storage = get_storage(args.storage)
     # --- LOAD PHASE: --storage aws genuinely uses the network here; the zero-network proof below only
@@ -437,6 +480,7 @@ def cmd_replay(args: argparse.Namespace) -> int:
 # ---------------------------------------------------------------------------------------------- gate
 
 def cmd_gate(args: argparse.Namespace) -> int:
+    _err(f"project root: {paths.project_root()}")
     scenario = _load_scenario(args.scenario)
     if scenario is None:
         _err(f"unknown scenario {args.scenario!r}")
@@ -447,9 +491,9 @@ def cmd_gate(args: argparse.Namespace) -> int:
         return 1
     c = contract_mod.load(cpath)
 
-    from gate import _parse_mutate_args
-    from gate import UnrecordedToolCallError
-    from storage import get_storage
+    from ._spike.gate import _parse_mutate_args
+    from ._spike.gate import UnrecordedToolCallError
+    from ._spike.storage import get_storage
     from strands.types.exceptions import EventLoopException
 
     storage = get_storage(args.storage)
@@ -457,7 +501,7 @@ def cmd_gate(args: argparse.Namespace) -> int:
     golden_events_flat = evaluate_mod.merged_golden_events(reference)
     mutations = _parse_mutate_args(args.mutate, golden_events_flat)
 
-    kwargs = dict(model_id=args.model_id, system_prompt=args.prompt, mutations=mutations, strict=args.strict)
+    kwargs = dict(model_id=args.model_id, system_prompt=args.prompt, mutations=mutations, strict=args.strict, pass_through=scenario.pass_through)
     try:
         r = evaluate_mod.run_and_evaluate(scenario.agent, scenario.input, c, reference, **kwargs)
     except EventLoopException as e:
@@ -490,11 +534,35 @@ def cmd_gate(args: argparse.Namespace) -> int:
     return 1 if r.verdict == "FAIL" else 0
 
 
+# ---------------------------------------------------------------------------------------------- where
+
+def cmd_where(args: argparse.Namespace) -> int:
+    """Phase 0 fix (docs/DECISIONS.md): prints exactly what record/test/gate would resolve, without
+    running any of them -- so "which directory is this actually reading?" never has to be guessed at,
+    especially from a subdirectory, a monorepo, or CI."""
+    root = paths.project_root()
+    print(f"project root: {root}")
+    print(f"scenarios:    {paths.scenarios_path()}")
+    print(f"contracts:    {paths.contracts_dir()}")
+    print(f"traces:       {paths.traces_dir()}")
+    return 0
+
+
 # ---------------------------------------------------------------------------------------------- argparse
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="agent-replay", description=__doc__.split("\n\n")[0])
+    p.add_argument(
+        "--project-root", default=None,
+        help="Override automatic project-root detection (same effect as the AGENT_REPLAY_ROOT env var; "
+             "this flag wins if both are set). Needed when the upward marker search (agent-replay/"
+             "scenarios.yaml, pyproject.toml, .git) would pick the wrong directory -- a monorepo, or an "
+             "unusual CI checkout layout. Run `agent-replay where` to see what would be used without it.",
+    )
     sub = p.add_subparsers(dest="command", required=True)
+
+    p_where = sub.add_parser("where", help="Print the resolved project root and where scenarios/contracts/traces live, without running anything.")
+    p_where.set_defaults(func=cmd_where)
 
     p_init = sub.add_parser("init", help="Set up scenarios.yaml for this project (interactive by default).")
     p_init.add_argument("--agent", default=None, help="Agent module name (non-interactive).")
@@ -542,6 +610,9 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+    # Applied before ANY subcommand runs, including `where` -- see paths.project_root()'s resolution
+    # order (this override, then AGENT_REPLAY_ROOT, then the upward marker search).
+    paths.set_project_root_override(Path(args.project_root) if args.project_root else None)
     try:
         return args.func(args)
     except SystemExit:

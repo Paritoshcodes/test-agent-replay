@@ -9,7 +9,10 @@ from .evaluate import ContractResult, ContractStep
 
 
 def _step_dict(s: ContractStep) -> dict:
-    return {"step": s.step, "tool": s.tool, "args": s.args, "gate_status": s.gate_status, "cause": s.cause, "attribution": s.attribution, "detail": s.detail, "mutated": s.mutated}
+    return {
+        "step": s.step, "tool": s.tool, "args": s.args, "gate_status": s.gate_status, "cause": s.cause,
+        "attribution": s.attribution, "detail": s.detail, "mutated": s.mutated, "agent": s.agent, "membership": s.membership,
+    }
 
 
 def to_json(r: ContractResult) -> dict:
@@ -17,6 +20,7 @@ def to_json(r: ContractResult) -> dict:
         "scenario": r.scenario,
         "verdict": r.verdict,
         "attribution_boundary": r.attribution_boundary,
+        "pass_through_boundary": r.pass_through_boundary,
         "first_divergence": _step_dict(r.first_divergence) if r.first_divergence else None,
         "steps": [_step_dict(s) for s in r.steps],
         "counters": {"model_calls": r.n_model, "injected": r.injected, "unrecorded": r.unrecorded, "tool_bodies": r.tool_bodies},

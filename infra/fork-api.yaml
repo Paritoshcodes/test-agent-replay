@@ -1,0 +1,274 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Fork endpoint for agent-replay (Phase 2.1, docs/DECISIONS.md): two Lambdas, not one -- a Lambda cannot
+  return early and keep running, and a fork's own live agent run takes 20-40s, well past what a
+  synchronous API Gateway integration will hold open (29s). agent-replay-fork-api is fast/synchronous,
+  behind API Gateway; agent-replay-fork-worker is invoked asynchronously (InvocationType="Event") and left
+  to run up to its own 300s timeout, writing each event to the EXISTING agent-replay DynamoDB table as it
+  happens so a poller sees them arrive one at a time. A SEPARATE template from infra/template.yaml (the
+  data stack), infra/dashboard-api.yaml (the read/accept API) and infra/github-oidc.yaml (CI trust),
+  consistent with this project's own precedent: independently deployable, deletable, reviewable alone --
+  this is a genuinely new, separate capability (write path + two new functions + its own HTTP API), not an
+  addition to the existing read-only dashboard API.
+
+Parameters:
+  AgentReplayTableName:
+    Type: String
+    Default: agent-replay
+  AgentReplayBucketName:
+    Type: String
+    Description: The BucketName output of the already-deployed infra/template.yaml stack (agent-replay-dev).
+  LambdaCodeBucket:
+    Type: String
+    Description: S3 bucket holding both Lambda deployment zips. Upload them BEFORE deploying this template.
+  ForkApiCodeKey:
+    Type: String
+    Default: lambda-code/fork-api.zip
+  ForkWorkerCodeKey:
+    Type: String
+    Default: lambda-code/fork-worker.zip
+  BedrockModelId:
+    Type: String
+    Default: apac.amazon.nova-lite-v1:0
+    Description: The cross-region inference profile ID this project's agents call through (AGENTS.md -- do not "correct" this to the bare model ID).
+
+Resources:
+  # ------------------------------------------------------------------ fork-worker (async, heavy, Bedrock)
+
+  ForkWorkerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: agent-replay-fork-worker
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: lambda.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        # Every action here maps 1:1 to an actual boto3 call agent_replay/fork.py, agent_replay/_spike/
+        # storage.py's AwsTraceStorage (load/save_test_run/save_comparison), and agent_replay/
+        # lambda_fork_worker.py's own direct DynamoDB writes actually make -- read agent_replay/_spike/
+        # storage.py and list them, per instruction, rather than guessing.
+        - PolicyName: fork-worker-access
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: BedrockInvoke
+                Effect: Allow
+                Action:
+                  - bedrock:InvokeModel
+                  - bedrock:InvokeModelWithResponseStream
+                Resource:
+                  # BOTH ARNs, per the known environment: ap-south-1 resolves apac.amazon.nova-lite-v1:0 to
+                  # a cross-region INFERENCE PROFILE, which itself routes to the underlying foundation
+                  # model in whichever region actually serves the request -- Bedrock authorizes both the
+                  # profile invocation and the foundation-model invocation it performs on your behalf.
+                  - !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/${BedrockModelId}"
+                  - "arn:aws:bedrock:*::foundation-model/amazon.nova-lite-v1:0"
+              - Sid: DynamoDbAccess
+                Effect: Allow
+                Action:
+                  # Query: AwsTraceStorage.load() (reference runs) and this worker's own status update read
+                  #   path is a Query too (none needed here directly, but Query covers load()).
+                  # PutItem: AwsTraceStorage.save_test_run()'s run_metadata item, save_comparison() writes
+                  #   to S3 not DDB, and this worker's own per-event fork_event items (lambda_fork_worker.py).
+                  # UpdateItem: this worker's own status flip to complete/failed on the terminal event.
+                  - dynamodb:Query
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                Resource: !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${AgentReplayTableName}"
+              - Sid: S3ReadGolden
+                # AwsTraceStorage.load()'s _get_payload(golden=True) -- reference-run tool/model payloads,
+                # prompt, and final_answer, every read keyed by a hash a successful Query JUST returned, so
+                # a genuinely missing key here would mean data corruption, not an expected/normal case --
+                # no s3:ListBucket granted for this role (unlike fork-api's own validation reads, where a
+                # missing field really can be a normal outcome; see ForkApiRole below).
+                Effect: Allow
+                Action: s3:GetObject
+                Resource: !Sub "arn:aws:s3:::${AgentReplayBucketName}/golden/*"
+              - Sid: S3WriteComparisons
+                # AwsTraceStorage.save_comparison() -- the fork's own full GateRun-shaped result, read back
+                # later by the EXISTING, unmodified agent_replay/lambda_handler.py's GET /runs/{run_id}.
+                Effect: Allow
+                Action: s3:PutObject
+                Resource: !Sub "arn:aws:s3:::${AgentReplayBucketName}/comparisons/*"
+
+  ForkWorkerFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: agent-replay-fork-worker
+      Runtime: python3.12
+      Handler: agent_replay.lambda_fork_worker.handler
+      Role: !GetAtt ForkWorkerRole.Arn
+      # 2. WORKER TIMEOUT AND MEMORY: Lambda's default (3s) would silently kill a 20-40s live fork run
+      # partway through, with no error the frontend could distinguish from a real crash. 300s covers a
+      # slow live run plus its retry-once-on-transient (agent_replay/fork.py); 1024MB is comfortably above
+      # the default 128MB for a process running strands-agents + a live Bedrock stream.
+      Timeout: 300
+      MemorySize: 1024
+      Code:
+        S3Bucket: !Ref LambdaCodeBucket
+        S3Key: !Ref ForkWorkerCodeKey
+      Environment:
+        Variables:
+          AGENT_REPLAY_TABLE: !Ref AgentReplayTableName
+          AGENT_REPLAY_BUCKET: !Ref AgentReplayBucketName
+          # This Lambda's own scenarios.yaml/contracts/*.yaml are bundled as static files in its deployment
+          # package at exactly this relative layout (agent_replay/paths.py's own project_root() marker
+          # search would find them here unassisted; set explicitly anyway for clarity, matching how
+          # AGENT_REPLAY_ROOT is already documented as an override for exactly this kind of case).
+          AGENT_REPLAY_ROOT: /var/task
+          # NOTE: AWS_REGION is deliberately NOT set here. It is a RESERVED Lambda environment variable --
+          # supplying it in Environment.Variables makes CreateFunction fail outright with
+          # "the environment variables you have provided contains reserved keys". Lambda populates it
+          # automatically with the function's own region (ap-south-1), which is the value we wanted anyway.
+          SUPERVISOR_MODEL_ID: !Ref BedrockModelId
+          SPECIALIST_MODEL_ID: !Ref BedrockModelId
+
+  ForkWorkerAsyncConfig:
+    Type: AWS::Lambda::EventInvokeConfig
+    Properties:
+      FunctionName: !Ref ForkWorkerFunction
+      Qualifier: $LATEST
+      # 2. Async (Event) invocations retry TWICE by default on a Lambda-level failure (a crash, a timeout)
+      # -- on top of agent_replay/fork.py's OWN retry-once-on-transient-Bedrock-error, that would mean up to
+      # three full live agent runs (and three times the Bedrock cost) for a single fork request. Set to 0:
+      # a genuine Lambda-level failure should surface as a stuck/orphaned fork (caught by fork-api's own
+      # 180s orphan ceiling, 2.1.5) rather than silently and expensively retrying the whole thing again.
+      MaximumRetryAttempts: 0
+
+  # ------------------------------------------------------------------ fork-api (sync, light, strands-free)
+
+  ForkApiRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: agent-replay-fork-api
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: lambda.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: fork-api-access
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: InvokeWorker
+                # 1. ASYNC INVOKE: lambda_client.invoke(FunctionName=<worker>, InvocationType="Event") --
+                # scoped to the worker's own ARN only, not "*", the one NEW action class this endpoint needs
+                # beyond what agent_replay/lambda_handler.py's existing role already covers.
+                Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource: !GetAtt ForkWorkerFunction.Arn
+              - Sid: DynamoDbAccess
+                Effect: Allow
+                Action:
+                  # PutItem: the fork_metadata item POST /forks writes before invoking the worker.
+                  # Query: GET /forks/{id}'s own poll reads, AND POST /forks' field-validation reads of
+                  #   each reference run's event index (agent_replay/lambda_fork_api.py's
+                  #   _golden_output_fields).
+                  - dynamodb:PutItem
+                  - dynamodb:Query
+                Resource: !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${AgentReplayTableName}"
+              - Sid: S3ReadGolden
+                # POST /forks' field-validation reads (agent_replay/lambda_fork_api.py's
+                # _golden_output_fields) -- a genuinely missing field on a PARTICULAR reference run is a
+                # real, expected outcome here (unlike the worker's own reads), so ListBucket is granted too.
+                Effect: Allow
+                Action: s3:GetObject
+                Resource: !Sub "arn:aws:s3:::${AgentReplayBucketName}/golden/*"
+              - Sid: S3ListGoldenPrefix
+                # Same gotcha agent_replay/lambda_handler.py's own comparisons/-scoped grant documents: without
+                # this, GetObject on a MISSING key 403s (AccessDenied) instead of a clean 404/skip, because
+                # S3 will not disclose non-existence to a caller that cannot list the bucket. Scoped to a
+                # bucket-level resource with a prefix condition matching the ONLY prefix this role ever reads.
+                Effect: Allow
+                Action: s3:ListBucket
+                Resource: !Sub "arn:aws:s3:::${AgentReplayBucketName}"
+                Condition:
+                  StringLike:
+                    s3:prefix: "golden/*"
+
+  ForkApiFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: agent-replay-fork-api
+      Runtime: python3.12
+      Handler: lambda_fork_api.handler
+      Role: !GetAtt ForkApiRole.Arn
+      Timeout: 10
+      MemorySize: 256
+      Code:
+        S3Bucket: !Ref LambdaCodeBucket
+        S3Key: !Ref ForkApiCodeKey
+      Environment:
+        Variables:
+          AGENT_REPLAY_TABLE: !Ref AgentReplayTableName
+          AGENT_REPLAY_BUCKET: !Ref AgentReplayBucketName
+          AGENT_REPLAY_ROOT: /var/task
+          FORK_WORKER_FUNCTION_NAME: !Ref ForkWorkerFunction
+
+  # ------------------------------------------------------------------ HTTP API (API Gateway, matching
+  # infra/dashboard-api.yaml's existing precedent -- CORS handled two ways, deliberately: the
+  # CorsConfiguration below covers the browser's OPTIONS preflight, and every actual Lambda response ALSO
+  # carries the same headers via agent_replay/lambda_fork_api.py's own _CORS dict, matching lambda_handler.py.
+
+  HttpApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: agent-replay-fork-api
+      ProtocolType: HTTP
+      CorsConfiguration:
+        AllowOrigins: ["*"]
+        AllowMethods: ["GET", "POST", "OPTIONS"]
+        AllowHeaders: ["content-type"]
+
+  ForkApiInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref ForkApiFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*/*"
+
+  ForkApiIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HttpApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt ForkApiFunction.Arn
+      PayloadFormatVersion: "2.0"
+
+  RoutePostForks:
+    Type: AWS::ApiGatewayV2::Route
+    Properties: { ApiId: !Ref HttpApi, RouteKey: "POST /forks", Target: !Sub "integrations/${ForkApiIntegration}" }
+
+  RouteGetPreview:
+    # Phase 2.2: the mutation editor's prefill values. Registered as its own literal-segment route
+    # ("/forks/preview/{scenario}/{tool}", 3 segments after /forks) -- API Gateway HTTP API matches routes
+    # by segment count/literal-vs-wildcard structure, not registration order, so this can never be shadowed
+    # by or shadow RouteGetFork's own single-segment "/forks/{fork_id}".
+    Type: AWS::ApiGatewayV2::Route
+    Properties: { ApiId: !Ref HttpApi, RouteKey: "GET /forks/preview/{scenario}/{tool}", Target: !Sub "integrations/${ForkApiIntegration}" }
+
+  RouteGetFork:
+    Type: AWS::ApiGatewayV2::Route
+    Properties: { ApiId: !Ref HttpApi, RouteKey: "GET /forks/{fork_id}", Target: !Sub "integrations/${ForkApiIntegration}" }
+
+  Stage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref HttpApi
+      StageName: "$default"
+      AutoDeploy: true
+
+Outputs:
+  ApiUrl:
+    Description: Base URL for the fork API. Set as VITE_AGENT_REPLAY_FORK_API_URL for the dashboard frontend build.
+    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"

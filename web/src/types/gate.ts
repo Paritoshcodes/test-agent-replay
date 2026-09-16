@@ -20,11 +20,23 @@ export type Cause =
   | "DIFFERENT_ANSWER"
   | "FORBIDDEN";
 
-/** StepReport.attribution */
-export type Attribution = "ATTRIBUTABLE" | "UNATTRIBUTED";
+/** StepReport.attribution. WEAKLY_ATTRIBUTABLE (Phase 3 decision 1, docs/DECISIONS.md) is a step at or
+ *  after a pass-through call -- a live sub-agent ran, so its own model is a second variable, even though
+ *  every leaf tool result underneath it was still frozen like everywhere else. Distinct from UNATTRIBUTED
+ *  (the harness's own synthetic error has already contaminated everything downstream): nothing has
+ *  diverged here, the one-variable-changed guarantee just no longer holds. */
+export type Attribution = "ATTRIBUTABLE" | "WEAKLY_ATTRIBUTABLE" | "UNATTRIBUTED";
 
-/** StepReport.gate_status */
-export type GateStatus = "recorded" | "unrecorded" | "n/a";
+/** StepReport.membership (Phase 1, UI): which part of the contract this call matched, or null when it
+ *  matched neither (UNRECORDED/UNSOURCED_ARGUMENT). Lets the swimlane view show at a glance whether a
+ *  call was mandatory or merely allowed -- see docs/LIMITATIONS.md, "A contract can only be as strict as
+ *  the agent is consistent". */
+export type Membership = "requires" | "permits" | null;
+
+/** StepReport.gate_status. "pass_through" (Phase 3 decision 1, docs/DECISIONS.md) is a call to a tool
+ *  that is itself a live sub-agent -- the real tool ran instead of being frozen; its own tool name is the
+ *  sub-agent's name, which is how the swimlane view (engine/swimlane.ts) infers nesting. */
+export type GateStatus = "recorded" | "unrecorded" | "pass_through" | "n/a";
 
 /** StepReport.golden / .candidate: {"tool", "args"} for a tool call, {"answer"} for a DIFFERENT_ANSWER row. */
 export type ToolCall = { tool: string; args: Record<string, unknown> };
@@ -40,6 +52,11 @@ export interface StepReport {
   cause: Cause | null;
   attribution: Attribution;
   mutated: boolean;
+  /** Phase 1 (UI): which agent made this call -- null for a fixture/older payload that predates this
+   *  field. "supervisor" (or the bare-module agent name) for a top-level call, a specialist's own name
+   *  for a nested pass-through call. */
+  agent?: string | null;
+  membership?: Membership;
 }
 
 /** spike/gate_compare.py ComparisonResult. Python tuples in answer_diff serialise as 2-element arrays. */
@@ -47,6 +64,8 @@ export interface ComparisonResult {
   steps: StepReport[];
   first_divergence: StepReport | null;
   attribution_boundary: number | null;
+  /** Phase 3 decision 1 (docs/DECISIONS.md): gate_step of the earliest pass-through call, or null. */
+  pass_through_boundary?: number | null;
   verdict: "PASS" | "FAIL";
   answer_matched: boolean;
   answer_diff: Record<string, [unknown, unknown]> | null;

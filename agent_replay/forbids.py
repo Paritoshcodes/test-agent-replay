@@ -16,10 +16,7 @@ import re
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 
-from . import paths
-
-paths.ensure_spike_importable()
-from gate import _parse_kv, _try_json  # noqa: E402 (spike/gate.py, unchanged; same parsing gate.py itself uses)
+from ._spike.gate import _parse_kv, _try_json
 
 _WHEN = re.compile(r"^(?P<tool>\S+)\s+when\s+(?P<other>\S+)\.(?P<field>\S+)\s*==\s*(?P<value>.+)$")
 _COUNT_PER = re.compile(r"^(?P<tool>\S+)\s+called more than\s+(?P<n>\d+)\s+times per\s+(?P<arg>\S+)$")

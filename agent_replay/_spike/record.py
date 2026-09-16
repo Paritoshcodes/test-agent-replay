@@ -1,15 +1,15 @@
-"""Run the spike agent once against real Bedrock and record every model call and tool call to traces/run-001.json."""
+"""Run the spike agent once against real Bedrock and record every model call and tool call to agent-replay/traces/run-001.json."""
 
 import argparse
 import time
 
-from agent import COUNTS, MODEL_ID, PROMPT, SYSTEM_PROMPT, build_agent, real_execution_count, sha256
-from storage import get_storage
+from .agent import COUNTS, MODEL_ID, PROMPT, SYSTEM_PROMPT, build_agent, real_execution_count, sha256
+from .storage import get_storage
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Record a golden trace for the toy support agent.")
-    parser.add_argument("--run-id", default="run-001", help="Trace identifier (local: traces/<run-id>.json; aws: DynamoDB partition key).")
+    parser.add_argument("--run-id", default="run-001", help="Trace identifier (local: agent-replay/traces/<run-id>.json; aws: DynamoDB partition key).")
     parser.add_argument("--storage", choices=["local", "aws"], default="local", help="Where to persist the trace.")
     args = parser.parse_args()
 

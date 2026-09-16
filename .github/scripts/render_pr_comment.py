@@ -48,7 +48,7 @@ def commit_link() -> str:
     sha = os.environ.get("GITHUB_SHA", "0000000000000000000000000000000000local")
     if not base:
         return "_(set AGENT_REPLAY_DASHBOARD_URL to link every scenario to its triage view)_"
-    return f"[View the fork ↗]({base}/commit/{sha}) -- dashboard infra deploy is currently blocked, see docs/LIMITATIONS.md"
+    return f"[View the fork ↗]({base}/commit/{sha})"
 
 
 VERDICT_ICON = {"PASS": "✅", "FAIL": "❌", "ERROR": "⚠️"}

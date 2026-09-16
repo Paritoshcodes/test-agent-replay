@@ -13,6 +13,10 @@ export function CommitPage({ sha, navigate }: { sha: string; navigate: (path: st
   const [commitState, setCommitState] = useState<{ status: "loading" } | { status: "error"; message: string } | { status: "ready"; runs: CommitRunSummary[] }>({ status: "loading" });
   const [selected, setSelected] = useState<string | null>(null);
   const [runState, setRunState] = useState<{ status: "idle" } | { status: "loading" } | { status: "error"; message: string } | { status: "ready"; run: GateRun }>({ status: "idle" });
+  // Phase 1 (docs/DECISIONS.md): collapsible left rail, same pattern as the Inspector -- the timeline
+  // region is a flex sibling of .triage-rail, so collapsing it to width:0 (CSS) is all this needs; no
+  // --side-w-style var to thread through, RunView's own layout already fills whatever .triage-main gives it.
+  const [railOpen, setRailOpen] = useState(true);
 
   const loadCommit = () => {
     setCommitState({ status: "loading" });
@@ -46,9 +50,16 @@ export function CommitPage({ sha, navigate }: { sha: string; navigate: (path: st
 
   return (
     <div className="triage">
-      <nav className="triage-rail" aria-label="Scenarios for this commit">
+      <nav className="triage-rail" aria-label="Scenarios for this commit" data-open={railOpen}>
         <div className="triage-rail-head">
-          <div className="triage-eyebrow">Commit</div>
+          <div className="triage-rail-head-row">
+            <div className="triage-eyebrow">Commit</div>
+            <button type="button" className="triage-rail-collapse" aria-label="Collapse scenario list" onClick={() => setRailOpen(false)}>
+              <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden>
+                <path d="M6.5 2 3 5l3.5 3" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+          </div>
           <div className="triage-sha">{sha.slice(0, 7)}</div>
           <div className="triage-summary">
             {runs.length === 0 ? "No scenario runs recorded for this commit yet." : `${passCount} of ${runs.length} scenario${runs.length === 1 ? "" : "s"} passing`}
@@ -62,6 +73,14 @@ export function CommitPage({ sha, navigate }: { sha: string; navigate: (path: st
           </button>
         ))}
       </nav>
+      {!railOpen && (
+        <button type="button" className="triage-rail-tab" onClick={() => setRailOpen(true)} aria-label="Open scenario list">
+          <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden>
+            <path d="M3.5 2 7 5l-3.5 3" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <span>Scenarios</span>
+        </button>
+      )}
       <div className="triage-main">
         {runs.length === 0 && <div className="triage-empty">Nothing to show yet -- no scenario has been tested against this commit with --storage aws.</div>}
         {runState.status === "loading" && <LoadingScreen label="Loading fork…" />}

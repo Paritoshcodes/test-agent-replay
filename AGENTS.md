@@ -63,6 +63,17 @@ not bit-for-bit reproducible even at temperature 0. Verified in practice:
 asking Nova at temperature 0 to reply with exactly "preflight ok" returned
 "Preflight OK". Do not build anything that assumes otherwise.
 
+## UI verification rule
+
+UI interactions (clicks, drags, keyboard activation) are verified with real
+coordinate-based clicks in an actual browser session, never with
+`element.click()` or any other synthetic/programmatic dispatch. Synthetic
+clicks bypass pointer capture and event bubbling, so they can pass on code
+that is actually broken in a real browser. This has already cost one full
+round: a lane-collapse click was reported fixed after only a synthetic
+`.click()` check, then found still broken by a real click, tracing to a
+pointer-capture bug the synthetic check could never have caught.
+
 ## Hard rules
 
 - Do not add dependencies beyond requirements.txt without asking.

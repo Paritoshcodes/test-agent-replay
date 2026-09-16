@@ -37,6 +37,7 @@ def _step_report(step: ContractStep) -> dict:
     return {
         "step": step.step, "golden": golden, "candidate": candidate,
         "gate_status": step.gate_status, "cause": step.cause, "attribution": step.attribution, "mutated": step.mutated,
+        "agent": step.agent, "membership": step.membership,
     }
 
 
@@ -70,6 +71,7 @@ def build_gate_run(
         "candidate_answer": result.candidate_answer,
         "result": {
             "steps": steps, "first_divergence": first_divergence, "attribution_boundary": result.attribution_boundary,
+            "pass_through_boundary": result.pass_through_boundary,
             "verdict": result.verdict, "answer_matched": answer_matched, "answer_diff": None,
         },
         "counters": {

@@ -14,7 +14,7 @@ import urllib.request
 import requests
 from strands import Agent, tool
 
-from agent import (  # noqa: F401 -- re-exported for record_audit.py / replay_audit.py / gate.py
+from .agent import (  # noqa: F401 -- re-exported for record_audit.py / replay_audit.py / gate.py
     COUNTS,
     MODEL_ID,
     REGION,
@@ -31,7 +31,12 @@ from strands.hooks import HookProvider
 # file:// URL, not a raw Windows path: a "D:\Project\..." path with backslashes in the prompt text is
 # fragile for the model to reproduce verbatim in a tool call -- confirmed in practice, it mangled it into
 # "D:\\" in 2/5 runs. .as_uri() gives an absolute, unambiguous, forward-slash target.
-DEFAULT_TARGET = (pathlib.Path(__file__).resolve().parent.parent / "requirements.txt").as_uri()
+# cwd-relative, not __file__-relative: this module now lives inside the installed agent_replay package,
+# not next to whatever project's requirements.txt should actually be audited (same reasoning as
+# agent_replay/paths.py's project_root()). Only used as the standalone spike/gate.py-style CLI's own
+# default target -- agent_replay's own scenarios.yaml supplies its prompt explicitly and never reads this
+# constant.
+DEFAULT_TARGET = (pathlib.Path.cwd() / "requirements.txt").as_uri()
 
 SYSTEM_PROMPT = (
     "You are a dependency security auditor. Read the manifest, then for every pinned package call "

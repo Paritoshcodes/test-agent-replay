@@ -20,9 +20,11 @@ Parameters:
     Type: String
     Default: "ref:refs/heads/*"
     Description: >
-      Which refs may assume this role, as the suffix of GitHub's OIDC "sub" claim
-      (repo:ORG/REPO:<this>). Default allows pull_request runs from any branch of this repo. Tighten to
-      e.g. "ref:refs/heads/main" to restrict to PRs whose workflow file itself lives on main.
+      Which BRANCH refs may assume this role, as the suffix of GitHub's OIDC "sub" claim
+      (repo:ORG/REPO:<this>). This covers push and workflow_dispatch events only. pull_request events
+      carry the literal sub "repo:ORG/REPO:pull_request" instead and are allowed unconditionally by a
+      second entry in the trust policy below -- this parameter does not affect them. Tighten to e.g.
+      "ref:refs/heads/main" to restrict which branches a push-triggered run may assume the role from.
   CreateOidcProvider:
     Type: String
     AllowedValues: ["true", "false"]
@@ -78,7 +80,31 @@ Resources:
               StringEquals:
                 token.actions.githubusercontent.com:aud: sts.amazonaws.com
               StringLike:
-                token.actions.githubusercontent.com:sub: !Sub "repo:${GitHubOrg}/${GitHubRepo}:${AllowedRef}"
+                # FOUR subject forms, because two things vary independently and BOTH surprised us:
+                #
+                # 1. EVENT TYPE changes the suffix:
+                #      push / workflow_dispatch -> ...:ref:refs/heads/<branch>
+                #      pull_request             -> ...:pull_request   (NO ref: segment)
+                #    This workflow triggers on pull_request, so the branch form alone fails every run.
+                #
+                # 2. IMMUTABLE SUBJECT CLAIMS. Verified empirically against a real token on
+                #    2026-09-14: GitHub issued
+                #      repo:Paritoshcodes@99049923/test-agent-replay@1370523973:pull_request
+                #    not the documented repo:ORG/REPO:pull_request. The numeric suffixes are the
+                #    org ID and repo ID, pinning the claim to identities that survive a rename and
+                #    cannot be inherited by a later repo of the same name. Not all accounts emit
+                #    this form, so BOTH are allowed here -- a template that hardcodes the documented
+                #    form silently fails with an opaque "Not authorized to perform
+                #    sts:AssumeRoleWithWebIdentity" and no indication of why.
+                #
+                # If you want maximum strictness, replace the @* wildcards below with your own
+                # literal org and repo IDs (read them off a real token, as above). Deliberately NOT
+                # widened to "repo:ORG/REPO:*", which would also grant environments and tags.
+                token.actions.githubusercontent.com:sub:
+                  - !Sub "repo:${GitHubOrg}/${GitHubRepo}:${AllowedRef}"
+                  - !Sub "repo:${GitHubOrg}/${GitHubRepo}:pull_request"
+                  - !Sub "repo:${GitHubOrg}@*/${GitHubRepo}@*:${AllowedRef}"
+                  - !Sub "repo:${GitHubOrg}@*/${GitHubRepo}@*:pull_request"
       Policies:
         # Every action below is mapped 1:1 to an actual boto3 call in spike/storage.py's AwsTraceStorage
         # (verified by reading it, not guessed) -- see docs/DECISIONS.md for the full call-to-action table.
@@ -111,6 +137,25 @@ Resources:
                   - s3:GetObject
                   - s3:PutObject
                 Resource: !Sub "arn:aws:s3:::${AgentReplayBucketName}/*"
+              - Sid: BedrockInvoke
+                Effect: Allow
+                Action:
+                  # `agent-replay test`/`gate` run the model LIVE (only the TOOL results are injected
+                  # from the golden trace), so CI needs Bedrock invoke rights -- not just the storage
+                  # permissions this policy originally covered. Strands' BedrockModel.stream() calls
+                  # ConverseStream, which maps to InvokeModelWithResponseStream; InvokeModel is included
+                  # for the non-streaming Converse path and structured_output.
+                  - bedrock:InvokeModel
+                  - bedrock:InvokeModelWithResponseStream
+                Resource:
+                  # TWO resource shapes are required for a cross-region inference profile. The call
+                  # targets the PROFILE (apac.amazon.nova-lite-v1:0, an account-scoped resource in the
+                  # source region), but Bedrock also authorizes against the underlying FOUNDATION MODEL
+                  # in whichever region the profile actually routes to -- so the model ARN is wildcarded
+                  # across regions on purpose. Granting only the profile fails at request time with an
+                  # AccessDeniedException naming the foundation model instead.
+                  - !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/apac.amazon.nova-lite-v1:0"
+                  - "arn:aws:bedrock:*::foundation-model/amazon.nova-lite-v1:0"
               - Sid: DescribeStackForNameResolution
                 Effect: Allow
                 # spike/storage.py's AwsTraceStorage resolves table/bucket names via describe_stacks
